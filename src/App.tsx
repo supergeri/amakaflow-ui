@@ -12,21 +12,17 @@ import { Analytics } from './components/Analytics';
 import { TeamSharing } from './components/TeamSharing';
 import { UserSettings } from './components/UserSettings';
 import { StravaEnhance } from './components/StravaEnhance';
+import { LoginPage } from './components/LoginPage';
 import { WorkoutStructure, ExportFormats, ValidationResponse } from './types/workout';
 import { generateWorkoutStructure, validateWorkout, processWorkflow } from './lib/mock-api';
 import { DeviceId } from './lib/devices';
 import { saveWorkoutToHistory, getWorkoutHistory } from './lib/workout-history';
 import { isAccountConnected } from './lib/linked-accounts';
+import { getSession, getCurrentUser, getUserProfile, signOut, onAuthStateChange } from './lib/auth';
+import { User } from './types/auth';
 
-type User = {
-  id: string;
-  email: string;
-  name: string;
+type AppUser = User & {
   avatar?: string;
-  subscription: 'free' | 'pro' | 'team';
-  workoutsThisWeek: number;
-  selectedDevices: DeviceId[];
-  billingDate?: Date;
   mode: 'individual' | 'trainer';
 };
 
@@ -34,18 +30,8 @@ type WorkflowStep = 'add-sources' | 'structure' | 'validate' | 'export';
 type View = 'home' | 'workflow' | 'profile' | 'history' | 'analytics' | 'team' | 'settings' | 'strava-enhance';
 
 export default function App() {
-  // Auto-login with mock user
-  const [user] = useState<User>({
-    id: 'demo-user-1',
-    email: 'demo@amakaflow.com',
-    name: 'Demo User',
-    avatar: undefined,
-    subscription: 'pro',
-    workoutsThisWeek: 7,
-    selectedDevices: ['garmin', 'apple'],
-    billingDate: new Date('2025-12-09'),
-    mode: 'trainer'
-  });
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const [currentView, setCurrentView] = useState<'home' | 'workflow' | 'profile' | 'history' | 'analytics' | 'team' | 'settings' | 'strava-enhance'>('home');
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('add-sources');
@@ -68,11 +54,122 @@ export default function App() {
 
   const currentStepIndex = steps.findIndex(s => s.id === currentStep);
 
-  // Load workout history on mount
+  // Check for existing session on mount and handle OAuth callback
   useEffect(() => {
-    const history = getWorkoutHistory();
-    setWorkoutHistoryList(history);
+    const checkSession = async () => {
+      try {
+        // Check for OAuth callback in URL hash
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const error = hashParams.get('error');
+        
+        if (error) {
+          toast.error('Authentication failed. Please try again.');
+          window.history.replaceState({}, '', '/');
+          setAuthLoading(false);
+          return;
+        }
+
+        // Get session (Supabase handles the OAuth callback automatically)
+        const { session, error: sessionError } = await getSession();
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+        }
+        
+        if (session?.user) {
+          await loadUserProfile(session.user.id);
+          // Clean up the URL hash if present
+          if (accessToken) {
+            window.history.replaceState({}, '', '/');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = onAuthStateChange(async (authUser) => {
+      if (authUser) {
+        await loadUserProfile(authUser.id);
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  // Load user profile from Supabase
+  const loadUserProfile = async (userId: string) => {
+    try {
+      const profile = await getUserProfile(userId);
+      if (profile) {
+        setUser({
+          ...profile,
+          avatar: undefined,
+          mode: 'individual' as const,
+        });
+      } else {
+        // If no profile exists, create a default one
+        const { user: authUser } = await getCurrentUser();
+        if (authUser) {
+          const defaultUser: AppUser = {
+            id: authUser.id,
+            email: authUser.email || '',
+            name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+            subscription: 'free',
+            workoutsThisWeek: 0,
+            selectedDevices: ['garmin'],
+            mode: 'individual',
+          };
+          setUser(defaultUser);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
+
+  // Handle login
+  const handleLogin = async (authUser: any) => {
+    if (authUser?.id) {
+      await loadUserProfile(authUser.id);
+    }
+  };
+
+  // Handle signup
+  const handleSignUp = async (authUser: any) => {
+    if (authUser?.id) {
+      await loadUserProfile(authUser.id);
+    }
+  };
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      setUser(null);
+      toast.success('Logged out successfully');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to logout');
+    }
+  };
+
+  // Load workout history on mount (only when user is logged in)
+  useEffect(() => {
+    if (user) {
+      const history = getWorkoutHistory();
+      setWorkoutHistoryList(history);
+    }
+  }, [user]);
 
   const handleStartNew = () => {
     setSources([]);
@@ -218,6 +315,27 @@ export default function App() {
     }
   };
 
+  // Show login page if not authenticated
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <>
+        <Toaster position="top-center" />
+        <LoginPage onLogin={handleLogin} onSignUp={handleSignUp} />
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Toaster position="top-center" />
@@ -291,15 +409,25 @@ export default function App() {
               </nav>
             </div>
             
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCurrentView('settings')}
-              className="gap-2"
-            >
-              <Settings className="w-4 h-4" />
-              Settings
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentView('settings')}
+                className="gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Settings
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="gap-2"
+              >
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
       </div>
