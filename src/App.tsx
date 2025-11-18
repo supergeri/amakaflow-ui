@@ -13,13 +13,14 @@ import { TeamSharing } from './components/TeamSharing';
 import { UserSettings } from './components/UserSettings';
 import { StravaEnhance } from './components/StravaEnhance';
 import { LoginPage } from './components/LoginPage';
+import { ProfileCompletion } from './components/ProfileCompletion';
 import { WorkoutStructure, ExportFormats, ValidationResponse } from './types/workout';
 import { generateWorkoutStructure, validateWorkout, processWorkflow } from './lib/mock-api';
 import { DeviceId } from './lib/devices';
 import { saveWorkoutToHistory, getWorkoutHistory } from './lib/workout-history';
-import { isAccountConnected } from './lib/linked-accounts';
 import { getSession, getCurrentUser, getUserProfile, signOut, onAuthStateChange } from './lib/auth';
 import { User } from './types/auth';
+import { isAccountConnected } from './lib/linked-accounts';
 
 type AppUser = User & {
   avatar?: string;
@@ -62,9 +63,10 @@ export default function App() {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         const error = hashParams.get('error');
+        const errorDescription = hashParams.get('error_description');
         
         if (error) {
-          toast.error('Authentication failed. Please try again.');
+          toast.error(`Authentication failed: ${errorDescription || error}. Please try again.`);
           window.history.replaceState({}, '', '/');
           setAuthLoading(false);
           return;
@@ -75,17 +77,24 @@ export default function App() {
         
         if (sessionError) {
           console.error('Session error:', sessionError);
+          toast.error(`Session error: ${sessionError.message || 'Failed to get session'}`);
+          setAuthLoading(false);
+          return;
         }
         
         if (session?.user) {
+          console.log('Session found, loading profile for user:', session.user.id);
           await loadUserProfile(session.user.id);
           // Clean up the URL hash if present
           if (accessToken) {
             window.history.replaceState({}, '', '/');
           }
+        } else {
+          console.log('No session found');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error checking session:', error);
+        toast.error(`Error: ${error.message || 'Failed to check session'}`);
       } finally {
         setAuthLoading(false);
       }
@@ -96,8 +105,10 @@ export default function App() {
     // Listen for auth state changes
     const { data: { subscription } } = onAuthStateChange(async (authUser) => {
       if (authUser) {
+        console.log('Auth state changed - user logged in:', authUser.id);
         await loadUserProfile(authUser.id);
       } else {
+        console.log('Auth state changed - user logged out');
         setUser(null);
       }
     });
@@ -107,39 +118,90 @@ export default function App() {
     };
   }, []);
 
+  // Check if profile needs completion
+  const needsProfileCompletion = (user: AppUser | null): boolean => {
+    if (!user) return false;
+    // Profile needs completion if:
+    // 1. No devices selected AND
+    // 2. Strava is not connected
+    const hasDevices = user.selectedDevices && user.selectedDevices.length > 0;
+    const hasStrava = isAccountConnected('strava');
+    return !hasDevices && !hasStrava;
+  };
+
   // Load user profile from Supabase
-  const loadUserProfile = async (userId: string) => {
+  const loadUserProfile = async (userId: string, retryCount = 0) => {
     try {
+      console.log(`Loading profile for user ${userId} (attempt ${retryCount + 1})`);
       const profile = await getUserProfile(userId);
+      
       if (profile) {
+        console.log('Profile found:', profile);
+        console.log('Selected devices:', profile.selectedDevices, 'Length:', profile.selectedDevices.length);
         setUser({
           ...profile,
           avatar: undefined,
           mode: 'individual' as const,
         });
       } else {
-        // If no profile exists, create a default one
-        const { user: authUser } = await getCurrentUser();
+        console.log('No profile found, retry count:', retryCount);
+        // Profile might not be created yet by the database trigger (especially for OAuth users)
+        // Retry up to 3 times with increasing delays
+        if (retryCount < 3) {
+          console.log(`Retrying in ${500 * (retryCount + 1)}ms...`);
+          setTimeout(() => {
+            loadUserProfile(userId, retryCount + 1);
+          }, 500 * (retryCount + 1)); // 500ms, 1000ms, 1500ms
+          return;
+        }
+        
+        // If profile still doesn't exist after retries, create a default one (no devices pre-selected)
+        console.log('Profile still not found after retries, creating default user');
+        const { user: authUser, error: userError } = await getCurrentUser();
+        
+        if (userError) {
+          console.error('Error getting current user:', userError);
+          toast.error('Failed to get user information. Please try logging in again.');
+          return;
+        }
+        
         if (authUser) {
+          console.log('Creating default user object for:', authUser.id);
           const defaultUser: AppUser = {
             id: authUser.id,
             email: authUser.email || '',
             name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
             subscription: 'free',
             workoutsThisWeek: 0,
-            selectedDevices: ['garmin'],
+            selectedDevices: [], // Empty - user must choose
             mode: 'individual',
           };
           setUser(defaultUser);
+        } else {
+          console.error('No auth user found');
+          toast.error('User authentication failed. Please try again.');
         }
       }
-      // Reset Strava connection status - check if actually connected
-      // For now, default to false since linked accounts should be per-user
-      // TODO: Store linked accounts in database per user
-      setStravaConnected(false);
-    } catch (error) {
+      // Check Strava connection status
+      setStravaConnected(isAccountConnected('strava'));
+    } catch (error: any) {
       console.error('Error loading user profile:', error);
+      // Only show toast for non-404 errors (profile not found is expected for new users)
+      if (error?.code !== 'PGRST116') {
+        toast.error(`Error loading profile: ${error.message || 'Unknown error'}`);
+      }
     }
+  };
+
+  // Handle profile completion
+  const handleProfileComplete = (updatedUser: User) => {
+    setUser({
+      ...updatedUser,
+      avatar: undefined,
+      mode: 'individual' as const,
+    });
+    // Refresh Strava connection status
+    setStravaConnected(isAccountConnected('strava'));
   };
 
   // Handle login
@@ -336,6 +398,16 @@ export default function App() {
       <>
         <Toaster position="top-center" />
         <LoginPage onLogin={handleLogin} onSignUp={handleSignUp} />
+      </>
+    );
+  }
+
+  // Show profile completion if needed
+  if (needsProfileCompletion(user)) {
+    return (
+      <>
+        <Toaster position="top-center" />
+        <ProfileCompletion user={user} onComplete={handleProfileComplete} />
       </>
     );
   }

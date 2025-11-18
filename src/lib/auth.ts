@@ -114,9 +114,28 @@ export async function getUserProfile(userId: string): Promise<User | null> {
       .eq('id', userId)
       .single();
 
-    if (error) throw error;
+    // Supabase returns a specific error code when no row is found
+    if (error) {
+      // PGRST116 = no rows returned (profile doesn't exist yet)
+      if (error.code === 'PGRST116') {
+        console.log('Profile not found for user:', userId);
+        return null;
+      }
+      // For other errors, log and throw
+      console.error('Error fetching user profile:', error);
+      throw error;
+    }
 
-    if (!data) return null;
+    if (!data) {
+      console.log('No data returned for user:', userId);
+      return null;
+    }
+
+    console.log('Profile data retrieved:', {
+      id: data.id,
+      email: data.email,
+      selected_devices: data.selected_devices,
+    });
 
     return {
       id: data.id,
@@ -124,12 +143,14 @@ export async function getUserProfile(userId: string): Promise<User | null> {
       name: data.name || data.email.split('@')[0],
       subscription: data.subscription || 'free',
       workoutsThisWeek: data.workouts_this_week || 0,
-      selectedDevices: (data.selected_devices || ['garmin']) as DeviceId[],
+      // Preserve empty arrays - don't fallback to ['garmin'] as that prevents profile completion
+      selectedDevices: (data.selected_devices ?? []) as DeviceId[],
       billingDate: data.billing_date ? new Date(data.billing_date) : undefined,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching user profile:', error);
-    return null;
+    // Re-throw to let caller handle it
+    throw error;
   }
 }
 
