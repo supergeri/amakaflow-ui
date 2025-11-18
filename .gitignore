@@ -36,3 +36,7 @@ build
 # Vite
 .vite
 
+# Supabase
+.supabase/.temp
+supabase/.temp
+
