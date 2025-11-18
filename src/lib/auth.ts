@@ -194,7 +194,9 @@ export async function signInWithOAuth(provider: 'google' | 'apple') {
         redirectTo: `${window.location.origin}`,
         queryParams: provider === 'google' ? {
           access_type: 'offline',
-          prompt: 'consent',
+          // Don't set prompt - let Google handle it automatically
+          // This allows automatic sign-in for returning users who are already logged in to Google
+          // Google will only show account picker if needed (multiple accounts or not logged in)
         } : undefined,
       },
     });
