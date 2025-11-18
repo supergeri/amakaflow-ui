@@ -43,7 +43,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<DeviceId>('garmin');
   const [workoutHistoryList, setWorkoutHistoryList] = useState<any[]>([]);
-  const [stravaConnected, setStravaConnected] = useState(isAccountConnected('strava'));
+  const [stravaConnected, setStravaConnected] = useState(false);
 
   const steps: Array<{ id: WorkflowStep; label: string; number: number }> = [
     { id: 'add-sources', label: 'Add Sources', number: 1 },
@@ -133,6 +133,10 @@ export default function App() {
           setUser(defaultUser);
         }
       }
+      // Reset Strava connection status - check if actually connected
+      // For now, default to false since linked accounts should be per-user
+      // TODO: Store linked accounts in database per user
+      setStravaConnected(false);
     } catch (error) {
       console.error('Error loading user profile:', error);
     }
