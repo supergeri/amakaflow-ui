@@ -868,10 +868,18 @@ export default function App() {
         )}
 
         {currentView === 'analytics' && (
-          <Analytics
-            user={user}
-            history={workoutHistoryList}
-          />
+          user ? (
+            <Analytics
+              user={user}
+              history={workoutHistoryList}
+            />
+          ) : (
+            <div className="text-center py-16">
+              <BarChart3 className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-20" />
+              <h3 className="text-xl mb-2">Analytics</h3>
+              <p className="text-muted-foreground">Please sign in to view analytics</p>
+            </div>
+          )
         )}
 
         {currentView === 'team' && (
