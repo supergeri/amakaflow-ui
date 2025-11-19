@@ -105,7 +105,7 @@ export async function getStravaActivities(
 }
 
 /**
- * Update a Strava activity with MyAmaka data
+ * Update a Strava activity with AmakaFlow data
  */
 export async function updateStravaActivity(
   userId: string,

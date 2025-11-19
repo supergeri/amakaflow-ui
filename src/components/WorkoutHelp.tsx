@@ -17,7 +17,7 @@ export function WorkoutHelp() {
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[85vh]">
         <DialogHeader>
-          <DialogTitle>MyAmaka / AmakaFlow Guide</DialogTitle>
+          <DialogTitle>AmakaFlow Guide</DialogTitle>
           <DialogDescription>
             Learn how to create, validate, and export workouts efficiently
           </DialogDescription>

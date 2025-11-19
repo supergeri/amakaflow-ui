@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -18,12 +18,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from './ui/alert-dialog';
-import { User, Mail, CreditCard, Bell, Shield, Smartphone, Watch, Bike, ArrowLeft, Link2, ChevronDown, ChevronRight, Settings as SettingsIcon } from 'lucide-react';
+import { User, Mail, CreditCard, Bell, Shield, Smartphone, Watch, Bike, ArrowLeft, Link2, ChevronDown, ChevronRight, Settings as SettingsIcon, Info } from 'lucide-react';
 import { DeviceId } from '../lib/devices';
 import { toast } from 'sonner';
 import { LinkedAccounts } from './LinkedAccounts';
 import { useClerkUser, useClerkAuth } from '../lib/clerk-auth';
 import { cn } from './ui/utils';
+import { getPreferences, savePreferences, ImageProcessingMethod, getImageProcessingMethod, setImageProcessingMethod } from '../lib/preferences';
+import { Alert, AlertDescription } from './ui/alert';
 
 type Props = {
   user: {
@@ -54,6 +56,7 @@ export function UserSettings({ user, onBack, onAccountsChange, onAccountDeleted 
   const [linkedProviders, setLinkedProviders] = useState<string[]>([]);
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['GENERAL']));
+  const [imageProcessingMethod, setImageProcessingMethodState] = useState<ImageProcessingMethod>(getImageProcessingMethod());
 
   useEffect(() => {
     // Load linked OAuth providers from Clerk user
@@ -75,7 +78,15 @@ export function UserSettings({ user, onBack, onAccountsChange, onAccountDeleted 
   }, [clerkUser]);
 
   const handleSave = () => {
+    // Save image processing preference
+    setImageProcessingMethod(imageProcessingMethod);
     toast.success('Settings saved successfully');
+  };
+
+  const handleImageProcessingMethodChange = (method: ImageProcessingMethod) => {
+    setImageProcessingMethodState(method);
+    setImageProcessingMethod(method);
+    toast.success(`Image processing method set to ${method === 'vision' ? 'Vision Model' : 'OCR'}`);
   };
 
   const toggleDevice = (device: DeviceId) => {
@@ -215,12 +226,79 @@ export function UserSettings({ user, onBack, onAccountsChange, onAccountDeleted 
               
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Preferences</CardTitle>
+                  <CardTitle className="text-lg">Image Processing</CardTitle>
+                  <CardDescription>
+                    Choose how workout images are processed
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    General application settings and preferences will be available here.
-                  </p>
+                  <div className="space-y-4">
+                    <div 
+                      className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
+                        imageProcessingMethod === 'ocr' ? 'bg-primary/5 border-primary' : 'hover:bg-muted/50'
+                      }`}
+                      onClick={() => handleImageProcessingMethodChange('ocr')}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="ocr" className="text-base font-medium cursor-pointer">
+                            OCR (Optical Character Recognition)
+                          </Label>
+                          <Badge variant="secondary" className="ml-2">Free</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Uses local OCR engine (Tesseract/EasyOCR). Fast and free, works offline.
+                          Best for clear, typed text.
+                        </p>
+                      </div>
+                      <Switch
+                        id="ocr"
+                        checked={imageProcessingMethod === 'ocr'}
+                        onCheckedChange={() => handleImageProcessingMethodChange('ocr')}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+
+                    <div 
+                      className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-colors ${
+                        imageProcessingMethod === 'vision' ? 'bg-primary/5 border-primary bg-muted/30' : 'bg-muted/30 hover:bg-muted/50'
+                      }`}
+                      onClick={() => handleImageProcessingMethodChange('vision')}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="vision" className="text-base font-medium cursor-pointer">
+                            AI Vision Model
+                          </Label>
+                          <Badge variant="default" className="ml-2 bg-blue-600">Premium</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Uses OpenAI GPT-4o-mini Vision for superior accuracy. Better for handwritten text,
+                          stylized fonts, and complex layouts.
+                        </p>
+                        <Alert className="mt-3 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <AlertDescription className="text-xs text-blue-800 dark:text-blue-200">
+                            <strong>Cost:</strong> ~$0.0001-0.0002 per image (very low). 
+                            For 1,000 workouts (~6 images each): ~$0.60-1.20. 
+                            Pricing will be incorporated into subscription plans in the future.
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                      <Switch
+                        id="vision"
+                        checked={imageProcessingMethod === 'vision'}
+                        onCheckedChange={() => handleImageProcessingMethodChange('vision')}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground">
+                      Your choice applies to all new image uploads. Existing workouts are not affected.
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             </div>

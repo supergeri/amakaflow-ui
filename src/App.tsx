@@ -591,7 +591,7 @@ export default function App() {
               </div>
             </div>
             <div>
-              <h1 className="text-3xl font-bold">MyAmaka/AmakaFlow</h1>
+              <h1 className="text-3xl font-bold">AmakaFlow</h1>
               <p className="mt-2 text-muted-foreground">
                 Transform workout content into structured training for your devices
               </p>
@@ -650,7 +650,7 @@ export default function App() {
                 </div>
               </div>
               <div>
-                <h1 className="text-3xl font-bold">MyAmaka/AmakaFlow</h1>
+                <h1 className="text-3xl font-bold">AmakaFlow</h1>
                 <p className="mt-2 text-muted-foreground">
                   Transform workout content into structured training for your devices
                 </p>

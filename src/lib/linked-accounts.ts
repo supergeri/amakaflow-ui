@@ -312,7 +312,7 @@ export function getOAuthUrl(provider: LinkedAccountProvider): string {
     amazfit: 'https://api.amazfit.com/oauth/authorize',
   };
   
-  const clientId = 'myamaka_client_id';
+  const clientId = 'amakaflow_client_id';
   const redirectUri = `${window.location.origin}/oauth/callback/${provider}`;
   const scope = 'activity:read_all,activity:write';
   
@@ -357,7 +357,7 @@ export const PLATFORM_INFO: Record<LinkedAccountProvider, PlatformInfo> = {
     color: '#FF2D55',
     icon: 'appleHealth',
     available: false,
-    unavailableReason: 'Available in the MyAmaka iOS App.',
+    unavailableReason: 'Available in the AmakaFlow iOS App.',
   },
   garmin: {
     name: 'Garmin Connect',

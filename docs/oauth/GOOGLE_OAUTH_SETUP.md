@@ -24,7 +24,7 @@ If this is your first OAuth setup, you'll need to configure the consent screen f
 1. Click **"Configure Consent Screen"**
 2. Choose **"External"** (unless you have a Google Workspace account)
 3. Fill in the required information:
-   - **App name**: AmakaFlow (or MyAmaka)
+   - **App name**: AmakaFlow
    - **User support email**: Your email
    - **Developer contact information**: Your email
 4. Click **"Save and Continue"**

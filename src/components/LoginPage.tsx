@@ -127,7 +127,7 @@ export function LoginPage({ onLogin, onSignUp }: LoginPageProps) {
             </div>
           </div>
           <div>
-            <CardTitle className="text-3xl">MyAmaka/AmakaFlow</CardTitle>
+            <CardTitle className="text-3xl">AmakaFlow</CardTitle>
             <CardDescription className="mt-2">
               Transform workout content into structured training for your devices
             </CardDescription>

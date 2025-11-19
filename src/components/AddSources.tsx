@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Instagram, Youtube, Image, Sparkles, Plus, Trash2, Loader2, Upload, X } from 'lucide-react';
+import { Instagram, Youtube, Image, Sparkles, Plus, Trash2, Loader2, Upload, X, Eye, Sparkles as VisionIcon } from 'lucide-react';
 import { Source, SourceType, WorkoutStructure } from '../types/workout';
 import { Textarea } from './ui/textarea';
 import { WorkoutTemplates } from './WorkoutTemplates';
+import { getImageProcessingMethod } from '../lib/preferences';
+import { Badge } from './ui/badge';
 
 interface AddSourcesProps {
   onGenerate: (sources: Source[]) => void;
@@ -22,6 +24,18 @@ export function AddSources({ onGenerate, onLoadTemplate, loading }: AddSourcesPr
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [imageMethod, setImageMethod] = useState<'ocr' | 'vision'>(getImageProcessingMethod());
+
+  // Listen for preference changes
+  useEffect(() => {
+    const checkMethod = () => {
+      setImageMethod(getImageProcessingMethod());
+    };
+    // Check on mount and when tab changes to image
+    checkMethod();
+    const interval = setInterval(checkMethod, 1000); // Check every second for preference changes
+    return () => clearInterval(interval);
+  }, [activeTab]);
 
   const addSource = () => {
     if (!currentInput.trim() && !uploadedImage) return;
@@ -192,6 +206,25 @@ export function AddSources({ onGenerate, onLoadTemplate, loading }: AddSourcesPr
               </TabsContent>
 
               <TabsContent value="image" className="space-y-4">
+                {/* Show current processing method */}
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    {imageMethod === 'vision' ? (
+                      <VisionIcon className="w-4 h-4 text-blue-600" />
+                    ) : (
+                      <Eye className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="text-sm font-medium">
+                      Processing Method: {imageMethod === 'vision' ? 'AI Vision Model' : 'OCR'}
+                    </span>
+                  </div>
+                  <Badge variant={imageMethod === 'vision' ? 'default' : 'secondary'} className={imageMethod === 'vision' ? 'bg-blue-600 hover:bg-blue-700' : ''}>
+                    {imageMethod === 'vision' ? 'Premium' : 'Free'}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Change processing method in <span className="font-medium">Settings → General</span>
+                </p>
                 <div className="space-y-2">
                   <Label>Image URL</Label>
                   <div className="flex gap-2">

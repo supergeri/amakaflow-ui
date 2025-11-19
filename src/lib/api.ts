@@ -194,8 +194,19 @@ export async function generateWorkoutStructure(
         }
         formData.append('file', imageBlob, fileName);
         
+        // Check user preference for image processing method
+        const { getImageProcessingMethod } = await import('./preferences');
+        const method = getImageProcessingMethod();
+        
+        let endpoint = '/ingest/image';
+        if (method === 'vision') {
+          endpoint = '/ingest/image_vision';
+          formData.append('vision_provider', 'openai');
+          formData.append('vision_model', 'gpt-4o-mini');
+        }
+        
         // Call the API with FormData (don't set Content-Type header)
-        workout = await apiCall<WorkoutStructure>('/ingest/image', {
+        workout = await apiCall<WorkoutStructure>(endpoint, {
           method: 'POST',
           body: formData,
           headers: {}, // Let browser set Content-Type with boundary

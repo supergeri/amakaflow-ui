@@ -358,7 +358,7 @@ export function LinkedAccounts({ onAccountsChange }: Props) {
         <div>
           <h2 className="text-2xl mb-2">Linked Accounts</h2>
           <p className="text-muted-foreground">
-            Manage your connected apps and authorize MyAmaka to enhance your workouts.
+            Manage your connected apps and authorize AmakaFlow to enhance your workouts.
           </p>
         </div>
         <div className="flex items-center justify-center py-12">
@@ -449,7 +449,7 @@ export function LinkedAccounts({ onAccountsChange }: Props) {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription className="text-xs">
-                  Disconnecting MyAmaka from {PLATFORM_INFO[selectedProvider].name} will remove all access. You can reconnect anytime.
+                  Disconnecting AmakaFlow from {PLATFORM_INFO[selectedProvider].name} will remove all access. You can reconnect anytime.
                 </AlertDescription>
               </Alert>
             </div>

@@ -228,7 +228,7 @@ export default function App() {
                 <Dumbbell className="w-6 h-6 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-2xl">MyAmaka / TraininQ</h1>
+                <h1 className="text-2xl">AmakaFlow</h1>
                 <p className="text-sm text-muted-foreground">
                   Workout Ingest → Mapping → Export
                 </p>

@@ -209,9 +209,9 @@ export function StravaEnhance({ onClose }: StravaEnhanceProps) {
     });
   };
 
-  // Generate enhanced description using MyAmaka template
+  // Generate enhanced description using AmakaFlow template
   const generateDescription = () => {
-    let description = '🏋️‍♂️ MYAMAKA ACTIVITY ENHANCEMENT\n';
+    let description = '🏋️‍♂️ AMAKAFLOW ACTIVITY ENHANCEMENT\n';
     description += '──────────────────────────────\n\n';
 
     if (summary.trim()) {
@@ -251,7 +251,7 @@ export function StravaEnhance({ onClose }: StravaEnhanceProps) {
     }
 
     description += '──────────────────────────────\n';
-    description += '🤖 Enhanced via MyAmaka\n';
+    description += '🤖 Enhanced via AmakaFlow\n';
     description += 'Ingest → Enhance → Sync';
 
     return description;
@@ -359,7 +359,7 @@ export function StravaEnhance({ onClose }: StravaEnhanceProps) {
         <div>
           <h2 className="mb-2">Enhance Strava Activity</h2>
           <p className="text-muted-foreground">
-            Add MyAmaka's structured formatting to your Strava activity
+            Add AmakaFlow's structured formatting to your Strava activity
           </p>
         </div>
         <Badge variant="secondary">
@@ -471,7 +471,7 @@ export function StravaEnhance({ onClose }: StravaEnhanceProps) {
                           <Alert className="mt-3">
                             <AlertCircle className="h-4 w-4" />
                             <AlertDescription className="text-xs">
-                              This activity already has a description. It will be replaced with MyAmaka formatting.
+                              This activity already has a description. It will be replaced with AmakaFlow formatting.
                             </AlertDescription>
                           </Alert>
                         )}
@@ -678,7 +678,7 @@ export function StravaEnhance({ onClose }: StravaEnhanceProps) {
             <div className="space-y-2">
               <h3 className="text-xl">Strava Activity Enhanced!</h3>
               <p className="text-muted-foreground">
-                Your activity "{selectedActivity.name}" has been enhanced with MyAmaka formatting
+                Your activity "{selectedActivity.name}" has been enhanced with AmakaFlow formatting
               </p>
             </div>
 
