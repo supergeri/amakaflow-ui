@@ -15,7 +15,8 @@ import { UserSettings } from './components/UserSettings';
 import { StravaEnhance } from './components/StravaEnhance';
 import { ProfileCompletion } from './components/ProfileCompletion';
 import { WorkoutStructure, ExportFormats, ValidationResponse } from './types/workout';
-import { generateWorkoutStructure, validateWorkout, processWorkflow } from './lib/mock-api';
+import { generateWorkoutStructure as generateWorkoutStructureReal, checkApiHealth } from './lib/api';
+import { generateWorkoutStructure as generateWorkoutStructureMock, validateWorkout, processWorkflow } from './lib/mock-api';
 import { DeviceId } from './lib/devices';
 import { saveWorkoutToHistory, getWorkoutHistory } from './lib/workout-history';
 import { useClerkUser, getUserProfileFromClerk, syncClerkUserToProfile } from './lib/clerk-auth';
@@ -33,6 +34,7 @@ type View = 'home' | 'workflow' | 'profile' | 'history' | 'analytics' | 'team' |
 export default function App() {
   // Clerk authentication
   const { user: clerkUser, isLoaded: clerkLoaded } = useClerkUser();
+  
   const [user, setUser] = useState<AppUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
@@ -47,6 +49,8 @@ export default function App() {
   const [selectedDevice, setSelectedDevice] = useState<DeviceId>('garmin');
   const [workoutHistoryList, setWorkoutHistoryList] = useState<any[]>([]);
   const [stravaConnected, setStravaConnected] = useState(false);
+  const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
+  const [instagramCredentials, setInstagramCredentials] = useState<{ username: string; password: string } | null>(null);
 
   const steps: Array<{ id: WorkflowStep; label: string; number: number }> = [
     { id: 'add-sources', label: 'Add Sources', number: 1 },
@@ -57,10 +61,42 @@ export default function App() {
 
   const currentStepIndex = steps.findIndex(s => s.id === currentStep);
 
-  // Sync Clerk user with Supabase profile
+  // Check API availability on mount
+  useEffect(() => {
+    checkApiHealth().then((available) => {
+      setApiAvailable(available);
+    }).catch(() => {
+      setApiAvailable(false);
+    });
+  }, []);
+
+
+  // Check if Clerk is configured
+  const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY && 
+                   !import.meta.env.VITE_CLERK_PUBLISHABLE_KEY.includes('placeholder');
+
+  // Sync Clerk user with Supabase profile, or create default user if Clerk not configured
   useEffect(() => {
     const syncUser = async () => {
-      if (!clerkLoaded) {
+      // If Clerk not configured, create default user for development
+      if (!hasClerk && !user) {
+        setAuthLoading(true);
+        const defaultUser: AppUser = {
+          id: 'dev-user',
+          email: 'dev@example.com',
+          name: 'Developer',
+          subscription: 'free',
+          workoutsThisWeek: 0,
+          selectedDevices: ['garmin'], // Pre-select Garmin as default device for dev mode
+          mode: 'individual',
+        };
+        setUser(defaultUser);
+        setAuthLoading(false);
+        return;
+      }
+
+      // If Clerk is configured but not loaded yet, wait
+      if (hasClerk && !clerkLoaded) {
         // Clerk is still loading
         return;
       }
@@ -112,11 +148,17 @@ export default function App() {
     };
 
     syncUser();
-  }, [clerkUser, clerkLoaded]);
+  }, [clerkUser, clerkLoaded, hasClerk]);
 
   // Check if profile needs completion
   const needsProfileCompletion = (user: AppUser | null): boolean => {
     if (!user) return false;
+    
+    // Skip profile completion if Clerk is not configured (dev mode)
+    if (!hasClerk) {
+      return false;
+    }
+    
     // Profile needs completion if:
     // 1. No devices selected AND
     // 2. Strava is not connected
@@ -213,14 +255,48 @@ export default function App() {
   const handleGenerateStructure = async (newSources: Source[]) => {
     setLoading(true);
     try {
+      // Check if API is available
+      const isApiAvailable = apiAvailable !== false ? await checkApiHealth() : false;
+      
+      // Update API availability state
+      setApiAvailable(isApiAvailable);
+      
       const sourcesData = newSources.map(s => ({ type: s.type, content: s.content }));
-      const structure = await generateWorkoutStructure(sourcesData);
+      
+      // Check if we have Instagram sources that need credentials
+      const hasInstagram = newSources.some(s => s.type === 'instagram');
+      
+      if (hasInstagram && isApiAvailable && !instagramCredentials) {
+        // Prompt for Instagram credentials
+        const username = prompt('Instagram Username:');
+        const password = prompt('Instagram Password (required for private posts):');
+        if (username && password) {
+          setInstagramCredentials({ username, password });
+        } else {
+          throw new Error('Instagram credentials required');
+        }
+      }
+      
+      // Use real API if available, otherwise fall back to mock
+      let structure: WorkoutStructure;
+      if (isApiAvailable) {
+        try {
+          structure = await generateWorkoutStructureReal(sourcesData, instagramCredentials || undefined);
+        } catch (apiError: any) {
+          // If API call fails, throw the error (don't silently fall back to mock)
+          throw new Error(`API error: ${apiError.message || 'Failed to generate workout'}`);
+        }
+      } else {
+        structure = await generateWorkoutStructureMock(sourcesData);
+      }
+        
       setWorkout(structure);
       setSources(newSources);
       setCurrentStep('structure');
       toast.success('Workout structure generated!');
-    } catch (error) {
-      toast.error('Failed to generate workout');
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Failed to generate workout';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -345,8 +421,8 @@ export default function App() {
     }
   };
 
-  // Show loading while Clerk initializes
-  if (!clerkLoaded || authLoading) {
+  // Show loading while Clerk initializes (only if Clerk is configured) or auth is loading
+  if ((hasClerk && !clerkLoaded) || authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -357,8 +433,9 @@ export default function App() {
     );
   }
 
-  // Show sign-in UI if not authenticated (Clerk handles this)
-  if (!clerkUser) {
+  // Show sign-in UI if Clerk is configured but user is not authenticated
+  // OR if no user exists at all (shouldn't happen, but safety check)
+  if (hasClerk && !clerkUser) {
     return (
       <>
         <Toaster position="top-center" />
@@ -389,6 +466,19 @@ export default function App() {
     );
   }
 
+  // If Clerk not configured but no user exists yet, show loading
+  // (This should only happen briefly while dev user is being created)
+  if (!hasClerk && !user && authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   // If Clerk user exists but profile not loaded yet, show loading
   if (!user && clerkUser) {
     return (
@@ -396,6 +486,50 @@ export default function App() {
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Safety check: if no user exists at all (shouldn't happen), show sign-in or error
+  if (!user) {
+    // If Clerk is configured, show sign-in
+    if (hasClerk) {
+      return (
+        <>
+          <Toaster position="top-center" />
+          <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-primary/10">
+            <div className="w-full max-w-md space-y-4 text-center">
+              <div className="flex justify-center">
+                <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center">
+                  <Dumbbell className="w-8 h-8 text-primary-foreground" />
+                </div>
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">MyAmaka/AmakaFlow</h1>
+                <p className="mt-2 text-muted-foreground">
+                  Transform workout content into structured training for your devices
+                </p>
+              </div>
+              <div className="space-y-2">
+                <SignInButton mode="modal">
+                  <Button className="w-full">Sign In</Button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <Button variant="outline" className="w-full">Sign Up</Button>
+                </SignUpButton>
+              </div>
+            </div>
+          </div>
+        </>
+      );
+    }
+    // If Clerk not configured and no user, still loading or error
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -494,7 +628,9 @@ export default function App() {
                 <Settings className="w-4 h-4" />
                 Settings
               </Button>
-              <UserButton afterSignOutUrl="/" />
+              {import.meta.env.VITE_CLERK_PUBLISHABLE_KEY && !import.meta.env.VITE_CLERK_PUBLISHABLE_KEY.includes('placeholder') && (
+                <UserButton afterSignOutUrl="/" />
+              )}
             </div>
           </div>
         </div>

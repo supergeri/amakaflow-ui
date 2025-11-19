@@ -15,6 +15,23 @@ import { DeviceId } from './devices';
  * Use this hook in components: const { user } = useClerkUser();
  */
 export function useClerkUser() {
+  // Check if Clerk is actually configured (has real publishable key, not placeholder)
+  const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY && 
+                   !import.meta.env.VITE_CLERK_PUBLISHABLE_KEY.includes('placeholder');
+  
+  // If no Clerk configured, return mock values immediately without calling hook
+  // This avoids the "useUser can only be used within ClerkProvider" error
+  if (!hasClerk) {
+    return {
+      user: null,
+      isLoaded: true,
+      isSignedIn: false,
+    } as ReturnType<typeof useUser>;
+  }
+  
+  // Must always call hooks unconditionally (React rules)
+  // But we've already checked, so this only executes when hasClerk is true
+  // and ClerkProvider should exist
   return useUser();
 }
 
@@ -23,6 +40,21 @@ export function useClerkUser() {
  * Use this hook in components: const { signOut } = useClerkAuth();
  */
 export function useClerkAuth() {
+  // Check if Clerk is actually configured (has real publishable key, not placeholder)
+  const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY && 
+                   !import.meta.env.VITE_CLERK_PUBLISHABLE_KEY.includes('placeholder');
+  
+  // If no Clerk configured, return mock auth functions
+  if (!hasClerk) {
+    return {
+      signOut: () => Promise.resolve(),
+      isSignedIn: false,
+      userId: null,
+      sessionId: null,
+    } as ReturnType<typeof useAuth>;
+  }
+  
+  // Must always call hooks unconditionally (React rules)
   return useAuth();
 }
 

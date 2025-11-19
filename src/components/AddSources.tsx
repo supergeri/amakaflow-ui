@@ -26,17 +26,37 @@ export function AddSources({ onGenerate, onLoadTemplate, loading }: AddSourcesPr
   const addSource = () => {
     if (!currentInput.trim() && !uploadedImage) return;
     
+    // For images: prefer URL if provided, otherwise handle file upload
+    let content: string;
+    if (activeTab === 'image') {
+      if (currentInput.trim()) {
+        // Use URL for image
+        content = currentInput.trim();
+        setCurrentInput('');
+      } else if (uploadedImage) {
+        // For file uploads, create a blob URL to store
+        content = URL.createObjectURL(uploadedImage);
+        setUploadedImage(null);
+        setImagePreview(null);
+      } else {
+        return;
+      }
+    } else {
+      // For other types, use currentInput or filename
+      content = uploadedImage ? uploadedImage.name : currentInput;
+      setCurrentInput('');
+      setUploadedImage(null);
+      setImagePreview(null);
+    }
+    
     const newSource: Source = {
       id: Date.now().toString(),
       type: activeTab,
-      content: uploadedImage ? uploadedImage.name : currentInput,
+      content,
       timestamp: new Date()
     };
     
     setSources([...sources, newSource]);
-    setCurrentInput('');
-    setUploadedImage(null);
-    setImagePreview(null);
   };
 
   const handleTabChange = (newTab: SourceType) => {
@@ -173,7 +193,24 @@ export function AddSources({ onGenerate, onLoadTemplate, loading }: AddSourcesPr
 
               <TabsContent value="image" className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Upload Image</Label>
+                  <Label>Image URL</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="https://example.com/image.jpg"
+                      value={currentInput}
+                      onChange={(e) => setCurrentInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && addSource()}
+                    />
+                    <Button onClick={addSource}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Or upload from file below
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Upload Image File</Label>
                   <div
                     className={`relative flex flex-col items-center justify-center w-full min-h-[200px] border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
                       isDragging 
