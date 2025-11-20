@@ -24,7 +24,7 @@ import {
   exportWorkoutToDevice,
   checkMapperApiHealth 
 } from './lib/mapper-api';
-import { DeviceId } from './lib/devices';
+import { DeviceId, getDeviceById } from './lib/devices';
 import { saveWorkoutToHistory, getWorkoutHistory, getWorkoutHistoryFromLocalStorage } from './lib/workout-history';
 import { useClerkUser, getUserProfileFromClerk, syncClerkUserToProfile } from './lib/clerk-auth';
 import { User } from './types/auth';
@@ -167,6 +167,16 @@ export default function App() {
     syncUser();
   }, [clerkUser, clerkLoaded, hasClerk]);
 
+  // Sync selectedDevice when user.selectedDevices changes
+  useEffect(() => {
+    if (user && user.selectedDevices && user.selectedDevices.length > 0) {
+      // If current selectedDevice is not in user's selectedDevices, update it
+      if (!user.selectedDevices.includes(selectedDevice)) {
+        setSelectedDevice(user.selectedDevices[0]);
+      }
+    }
+  }, [user?.selectedDevices]);
+
   // Check if profile needs completion
   const needsProfileCompletion = (user: AppUser | null): boolean => {
     if (!user) return false;
@@ -198,6 +208,14 @@ export default function App() {
           avatar: clerkUser?.imageUrl,
           mode: 'individual' as const,
         });
+        
+        // Update selectedDevice based on user's selected devices
+        if (profile.selectedDevices && profile.selectedDevices.length > 0) {
+          // Use the first selected device as the default, but only if current device is not in the list
+          if (!profile.selectedDevices.includes(selectedDevice)) {
+            setSelectedDevice(profile.selectedDevices[0]);
+          }
+        }
       } else {
         console.log('No profile found, retry count:', retryCount);
         // Profile might not be created yet
@@ -497,7 +515,8 @@ export default function App() {
       setValidation(validationResult);
       setWorkout(updatedWorkout); // Update the workout state as well
       setCurrentStep('export');
-      toast.success(`Workout processed for ${selectedDevice === 'garmin' ? 'Garmin' : selectedDevice === 'apple' ? 'Apple Watch' : 'Zwift'}!`);
+      const deviceName = getDeviceById(selectedDevice)?.name || selectedDevice;
+      toast.success(`Workout processed for ${deviceName}!`);
       
       // Save to history
       if (user) {
@@ -962,6 +981,27 @@ export default function App() {
               // Account was deleted, sign out and reset state
               setUser(null);
               toast.success('Your account has been deleted');
+            }}
+            onUserUpdate={(updates) => {
+              // Update local user state with new device selections
+              if (updates.selectedDevices && user) {
+                setUser({
+                  ...user,
+                  selectedDevices: updates.selectedDevices,
+                });
+                
+                // Update selectedDevice if the current device is no longer in selected devices
+                // Or use the first selected device if current device is not selected
+                if (updates.selectedDevices.length > 0) {
+                  if (!updates.selectedDevices.includes(selectedDevice)) {
+                    // Current device is not in the selected list, use the first one
+                    setSelectedDevice(updates.selectedDevices[0]);
+                  }
+                } else if (selectedDevice && !updates.selectedDevices.includes(selectedDevice)) {
+                  // No devices selected, but we still have a selectedDevice, keep it for now
+                  // (user can still export even if device is not in their profile)
+                }
+              }
             }}
           />
         )}

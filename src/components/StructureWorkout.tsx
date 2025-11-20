@@ -9,7 +9,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { WorkoutStructure, Exercise } from '../types/workout';
-import { DeviceId, getDevicesByIds } from '../lib/devices';
+import { DeviceId, getDevicesByIds, getDeviceById } from '../lib/devices';
 import { ExerciseSearch } from './ExerciseSearch';
 
 type Props = {
@@ -206,7 +206,7 @@ export function StructureWorkout({
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label>Target Device</Label>
+            <Label>Target Device: {availableDevices.find(d => d.id === selectedDevice)?.name || getDeviceById(selectedDevice)?.name || selectedDevice}</Label>
             <div className="flex gap-2 mt-2">
               {availableDevices.map((device) => (
                 <Button

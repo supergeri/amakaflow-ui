@@ -6,6 +6,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Clock, Dumbbell, Watch, Bike, Download, Activity, CheckCircle2, ExternalLink, Eye, Trash2, ChevronRight, Edit, List, Search, BarChart3, FileText, Layers, Play, X } from 'lucide-react';
 import { WorkoutHistoryItem } from '../lib/workout-history';
 import { isAccountConnectedSync } from '../lib/linked-accounts';
+import { DeviceId, getDeviceById } from '../lib/devices';
 import {
   Dialog,
   DialogContent,
@@ -1019,7 +1020,7 @@ export function WorkoutHistory({ history, onLoadWorkout, onEditWorkout, onDelete
                     variant="default"
                   >
                     <Download className="w-4 h-4" />
-                    Export to {viewingWorkout.device === 'garmin' ? 'Garmin' : viewingWorkout.device === 'apple' ? 'Apple Watch' : 'Zwift'}
+                    Export to {getDeviceById(viewingWorkout.device as DeviceId)?.name || viewingWorkout.device}
                   </Button>
                 )}
                 {onEditWorkout && (

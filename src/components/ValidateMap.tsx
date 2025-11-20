@@ -15,7 +15,7 @@ import {
   Bike
 } from 'lucide-react';
 import { ValidationResponse, ValidationResult, WorkoutStructure } from '../types/workout';
-import { DeviceId } from '../lib/devices';
+import { DeviceId, getDeviceById } from '../lib/devices';
 import { Label } from './ui/label';
 import {
   Select,
@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from './ui/select';
 import { EnhancedMapping } from './EnhancedMapping';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 
 interface ValidateMapProps {
   validation: ValidationResponse;
@@ -204,10 +204,40 @@ export function ValidateMap({
     const updatedConfirmed = new Set([...confirmedMappings, ...allMappedExercises]);
     setConfirmedMappings(updatedConfirmed);
     
-    // Note: We don't need to move exercises between arrays here because:
-    // - Exercises in validated_exercises stay there (they're already validated, just need confirmation)
-    // - Exercises in needs_review will be moved when they're individually confirmed
-    // The important thing is that they're now in the confirmedMappings set
+    // Also update localValidation to move confirmed exercises from needs_review to validated_exercises
+    const updatedValidation = { ...localValidation };
+    
+    // Move all confirmed exercises from needs_review to validated_exercises
+    const exercisesToMove = updatedValidation.needs_review.filter(
+      ex => updatedConfirmed.has(ex.original_name) && ex.mapped_to && ex.mapped_to !== ex.original_name
+    );
+    
+    // Remove from needs_review
+    updatedValidation.needs_review = updatedValidation.needs_review.filter(
+      ex => !updatedConfirmed.has(ex.original_name) || !ex.mapped_to || ex.mapped_to === ex.original_name
+    );
+    
+    // Remove from unmapped_exercises if they're there
+    updatedValidation.unmapped_exercises = updatedValidation.unmapped_exercises.filter(
+      ex => !updatedConfirmed.has(ex.original_name)
+    );
+    
+    // Add to validated_exercises (avoid duplicates)
+    exercisesToMove.forEach(ex => {
+      if (!updatedValidation.validated_exercises.some(e => e.original_name === ex.original_name)) {
+        updatedValidation.validated_exercises.push({
+          ...ex,
+          mapped_to: ex.mapped_to || ex.original_name,
+          status: 'valid' as const,
+          confidence: Math.max(ex.confidence, 0.95)
+        });
+      }
+    });
+    
+    // Update can_proceed: true if no unmapped exercises remain
+    updatedValidation.can_proceed = updatedValidation.unmapped_exercises.length === 0;
+    
+    setLocalValidation(updatedValidation);
     
     toast.success(`Confirmed ${unconfirmed.length} mapping(s)`, {
       duration: 3000,
@@ -241,15 +271,21 @@ export function ValidateMap({
 
   // Get exercises that need review but haven't been confirmed
   const unconfirmedNeedsReview = localValidation.needs_review.filter(
-    result => result.mapped_to && !confirmedMappings.has(result.original_name)
+    result => {
+      const hasMapping = result.mapped_to && result.mapped_to !== result.original_name;
+      const isConfirmed = confirmedMappings.has(result.original_name);
+      return hasMapping && !isConfirmed;
+    }
   );
 
   // Get exercises in validated_exercises that have mappings but haven't been confirmed
   // These are exercises that were auto-validated but still need user confirmation
   const unconfirmedValidated = localValidation.validated_exercises.filter(
-    result => result.mapped_to && 
-              result.mapped_to !== result.original_name && 
-              !confirmedMappings.has(result.original_name)
+    result => {
+      const hasMapping = result.mapped_to && result.mapped_to !== result.original_name;
+      const isConfirmed = confirmedMappings.has(result.original_name);
+      return hasMapping && !isConfirmed;
+    }
   );
 
   // Check if export should be disabled
@@ -258,15 +294,11 @@ export function ValidateMap({
   
   // Export should be disabled if:
   // 1. There are unmapped exercises, OR
-  // 2. There are unconfirmed mappings (in either needs_review OR validated_exercises), OR
-  // 3. Validation says we can't proceed
+  // 2. There are unconfirmed mappings (in either needs_review OR validated_exercises)
   // IMPORTANT: We check our own state, not just localValidation.can_proceed,
   // because can_proceed from API doesn't account for confirmation status
-  const canExport = !hasUnmapped && !hasUnconfirmedMappings;
-  
-  // Also ensure validation says we can proceed (but don't rely on it alone)
-  // This is a safety check, but the main checks are hasUnmapped and hasUnconfirmedMappings
-  const finalCanExport = canExport && localValidation.can_proceed;
+  // If all exercises are mapped and confirmed, we can export regardless of can_proceed
+  const finalCanExport = !hasUnmapped && !hasUnconfirmedMappings;
 
   // Get reason why export is disabled
   const getExportDisabledReason = () => {
@@ -496,11 +528,11 @@ export function ValidateMap({
               <div className="flex items-center gap-2">
                 <span className="font-medium">Target Device:</span>
                 <Badge>
-                  {selectedDevice === 'garmin' ? 'Garmin' : selectedDevice === 'apple' ? 'Apple Watch' : 'Zwift'}
+                  {getDeviceById(selectedDevice)?.name || selectedDevice}
                 </Badge>
               </div>
               <div className="text-sm text-muted-foreground mt-1">
-                Validation checked against {selectedDevice === 'garmin' ? 'Garmin' : selectedDevice === 'apple' ? 'Apple Watch' : 'Zwift'} exercise library
+                Validation checked against {getDeviceById(selectedDevice)?.name || selectedDevice} exercise library
               </div>
             </div>
           </div>
@@ -532,7 +564,7 @@ export function ValidateMap({
             ) : (
               <ArrowRight className="w-4 h-4 mr-2" />
             )}
-            Export to {selectedDevice === 'garmin' ? 'Garmin' : selectedDevice === 'apple' ? 'Apple Watch' : 'Zwift'}
+            Export to {getDeviceById(selectedDevice)?.name || selectedDevice}
           </Button>
           {!finalCanExport && !loading && (
             <p className="text-xs text-muted-foreground text-right">
