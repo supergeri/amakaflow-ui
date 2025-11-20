@@ -351,9 +351,89 @@ export function UserSettings({ user, onBack, onAccountsChange, onAccountDeleted 
                     </div>
                   </div>
 
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground">
+                        API tokens are configured in the backend environment. Contact support if you need to update your API keys.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">AI Text Processing</CardTitle>
+                  <CardDescription>
+                    Information about AI text workout parsing
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-base font-medium">Parsing Method</Label>
+                        <Badge variant="secondary">Rule-Based</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Workout text is parsed using a <strong>rule-based parser</strong> (<code className="text-xs bg-muted px-1 py-0.5 rounded">ParserService.parse_ai_workout</code>) that uses regex patterns to extract exercises, sets, reps, and blocks from formatted text.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        The parser can handle various formats including:
+                      </p>
+                      <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1 ml-2">
+                        <li>Emoji-formatted headers (e.g., "🔥 Warm-Up (10 min):")</li>
+                        <li>Numbered exercise lists (e.g., "1. Exercise Name – 4 sets x 5–8 reps")</li>
+                        <li>Bullet points (e.g., "• Exercise x 20")</li>
+                        <li>Block structures with sections and durations</li>
+                        <li>Set and rep ranges (e.g., "5–8 reps", "4 sets x 8–10 reps")</li>
+                      </ul>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-base font-medium">What Gets Parsed</Label>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        The parser extracts:
+                      </p>
+                      <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1 ml-2">
+                        <li><strong>Workout title</strong> - From the first line or emoji header</li>
+                        <li><strong>Blocks</strong> - Workout sections (Warm-Up, Strength Block, etc.)</li>
+                        <li><strong>Exercises</strong> - Exercise names with sets and reps</li>
+                        <li><strong>Durations</strong> - Time-based intervals and rest periods</li>
+                        <li><strong>Supersets</strong> - Grouped exercises with rest between sets</li>
+                      </ul>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-base font-medium">Metadata Filtering</Label>
+                        <Badge variant="default" className="bg-green-600">Active</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        The parser automatically filters out metadata lines such as:
+                      </p>
+                      <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1 ml-2">
+                        <li>Location, Duration, Frequency, Goal headers</li>
+                        <li>Standalone description text (non-exercise content)</li>
+                        <li>Separator lines and formatting characters</li>
+                      </ul>
+                    </div>
+
+                    <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                      <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <AlertDescription className="text-xs text-blue-800 dark:text-blue-200">
+                        <strong>Note:</strong> This is a rule-based parser (not AI-powered). For best results, use clearly formatted workout text with consistent structure. The parser works offline and requires no API keys.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+
                   <div className="pt-2 border-t">
                     <p className="text-xs text-muted-foreground">
-                      API tokens are configured in the backend environment. Contact support if you need to update your API keys.
+                      The parser is continuously improved to handle more workout formats. If you encounter parsing issues, please report them with a sample of your workout text.
                     </p>
                   </div>
                 </CardContent>
