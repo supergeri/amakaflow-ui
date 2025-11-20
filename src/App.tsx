@@ -57,7 +57,6 @@ export default function App() {
   const [workoutHistoryList, setWorkoutHistoryList] = useState<any[]>([]);
   const [stravaConnected, setStravaConnected] = useState(false);
   const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
-  const [instagramCredentials, setInstagramCredentials] = useState<{ username: string; password: string } | null>(null);
 
   const steps: Array<{ id: WorkflowStep; label: string; number: number }> = [
     { id: 'add-sources', label: 'Add Sources', number: 1 },
@@ -316,25 +315,11 @@ export default function App() {
       
       const sourcesData = newSources.map(s => ({ type: s.type, content: s.content }));
       
-      // Check if we have Instagram sources that need credentials
-      const hasInstagram = newSources.some(s => s.type === 'instagram');
-      
-      if (hasInstagram && isApiAvailable && !instagramCredentials) {
-        // Prompt for Instagram credentials
-        const username = prompt('Instagram Username:');
-        const password = prompt('Instagram Password (required for private posts):');
-        if (username && password) {
-          setInstagramCredentials({ username, password });
-        } else {
-          throw new Error('Instagram credentials required');
-        }
-      }
-      
       // Use real API if available, otherwise fall back to mock
       let structure: WorkoutStructure;
       if (isApiAvailable) {
         try {
-          structure = await generateWorkoutStructureReal(sourcesData, instagramCredentials || undefined);
+          structure = await generateWorkoutStructureReal(sourcesData);
         } catch (apiError: any) {
           // If API call fails, throw the error (don't silently fall back to mock)
           throw new Error(`API error: ${apiError.message || 'Failed to generate workout'}`);

@@ -122,29 +122,12 @@ async function apiCall<T>(
  * Generate workout structure from sources
  */
 export async function generateWorkoutStructure(
-  sources: Array<{ type: SourceType; content: string }>,
-  instagramCredentials?: { username: string; password: string }
+  sources: Array<{ type: SourceType; content: string }>
 ): Promise<WorkoutStructure> {
   let workout: WorkoutStructure;
   
   // Handle different source types
   for (const source of sources) {
-    if (source.type === 'instagram') {
-      if (!instagramCredentials) {
-        throw new Error('Instagram credentials required. Please provide username and password in settings.');
-      }
-      
-      workout = await apiCall<WorkoutStructure>('/ingest/instagram_test', {
-        method: 'POST',
-        body: JSON.stringify({
-          username: instagramCredentials.username,
-          password: instagramCredentials.password,
-          url: source.content,
-        }),
-      });
-      break;
-    }
-
     if (source.type === 'youtube') {
       workout = await apiCall<WorkoutStructure>('/ingest/youtube', {
         method: 'POST',

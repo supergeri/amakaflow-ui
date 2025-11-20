@@ -301,6 +301,63 @@ export function UserSettings({ user, onBack, onAccountsChange, onAccountDeleted 
                   </div>
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">YouTube Ingestion</CardTitle>
+                  <CardDescription>
+                    Information about YouTube video workout extraction
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-base font-medium">Transcript Extraction</Label>
+                        <Badge variant="secondary">Active</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        We use <a href="https://www.youtube-transcript.io/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">youtube-transcript.io</a> to extract transcripts from YouTube videos.
+                      </p>
+                      <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <AlertDescription className="text-xs text-blue-800 dark:text-blue-200">
+                          <strong>Free Tier:</strong> 25 transcripts per month
+                          <br />
+                          Perfect for testing and occasional use. Upgrade to a paid plan for more transcripts if needed.
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-base font-medium">Exercise Extraction</Label>
+                        <Badge variant="default" className="bg-blue-600">AI-Powered</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Exercises are extracted from transcripts using <strong>OpenAI GPT-4o-mini</strong> or <strong>Anthropic Claude 3.5 Sonnet</strong> (depending on API key availability).
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        The AI identifies exercises, sets, reps, and other workout details from conversational video transcripts, filtering out explanations and non-exercise content.
+                      </p>
+                      <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+                        <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
+                          <strong>Note:</strong> If no OpenAI or Anthropic API key is configured, the system falls back to rule-based extraction (limited to known exercises).
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground">
+                      API tokens are configured in the backend environment. Contact support if you need to update your API keys.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 

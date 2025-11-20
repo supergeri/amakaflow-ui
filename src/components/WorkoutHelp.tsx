@@ -44,7 +44,6 @@ export function WorkoutHelp() {
                 <CardContent className="space-y-2 text-sm">
                   <p>Start by adding workout sources from multiple platforms:</p>
                   <ul className="list-disc pl-5 space-y-1">
-                    <li><strong>Instagram</strong>: Paste post URLs with workout descriptions</li>
                     <li><strong>YouTube</strong>: Add video links with workout content</li>
                     <li><strong>Images</strong>: Link to workout images with exercise lists</li>
                     <li><strong>AI Text</strong>: Describe your workout in natural language</li>
@@ -138,7 +137,7 @@ export function WorkoutHelp() {
                     <div className="flex items-start gap-2">
                       <ArrowRight className="w-4 h-4 mt-0.5 text-primary" />
                       <div>
-                        <strong>Combine sources:</strong> Mix Instagram posts, YouTube videos, and AI text in one workout
+                        <strong>Combine sources:</strong> Mix YouTube videos, images, and AI text in one workout
                       </div>
                     </div>
                   </div>

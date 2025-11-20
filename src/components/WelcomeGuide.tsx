@@ -3,7 +3,6 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { 
-  Instagram, 
   Youtube, 
   Image as ImageIcon, 
   Bot,
@@ -29,10 +28,10 @@ export function WelcomeGuide({ onGetStarted }: WelcomeGuideProps) {
   const steps = [
     {
       number: 1,
-      icon: <Instagram className="w-5 h-5" />,
+      icon: <Youtube className="w-5 h-5" />,
       title: 'Add Sources',
-      description: 'Import workout content from Instagram posts, YouTube videos, images, or text descriptions',
-      examples: ['Instagram Post URL', 'YouTube Video', 'Workout Image', 'AI Text Description']
+      description: 'Import workout content from YouTube videos, images, or text descriptions',
+      examples: ['YouTube Video', 'Workout Image', 'AI Text Description']
     },
     {
       number: 2,

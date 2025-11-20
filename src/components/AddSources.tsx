@@ -4,12 +4,14 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Instagram, Youtube, Image, Sparkles, Plus, Trash2, Loader2, Upload, X, Eye, Sparkles as VisionIcon } from 'lucide-react';
+import { Youtube, Image, Sparkles, Plus, Trash2, Loader2, Upload, X, Eye, Sparkles as VisionIcon } from 'lucide-react';
 import { Source, SourceType, WorkoutStructure } from '../types/workout';
 import { Textarea } from './ui/textarea';
 import { WorkoutTemplates } from './WorkoutTemplates';
 import { getImageProcessingMethod } from '../lib/preferences';
 import { Badge } from './ui/badge';
+import { Alert, AlertDescription } from './ui/alert';
+import { Info } from 'lucide-react';
 
 interface AddSourcesProps {
   onGenerate: (sources: Source[]) => void;
@@ -20,7 +22,7 @@ interface AddSourcesProps {
 export function AddSources({ onGenerate, onLoadTemplate, loading }: AddSourcesProps) {
   const [sources, setSources] = useState<Source[]>([]);
   const [currentInput, setCurrentInput] = useState('');
-  const [activeTab, setActiveTab] = useState<SourceType>('instagram');
+  const [activeTab, setActiveTab] = useState<SourceType>('image');
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -126,10 +128,10 @@ export function AddSources({ onGenerate, onLoadTemplate, loading }: AddSourcesPr
 
   const getSourceIcon = (type: SourceType) => {
     switch (type) {
-      case 'instagram': return <Instagram className="w-4 h-4" />;
       case 'youtube': return <Youtube className="w-4 h-4" />;
       case 'image': return <Image className="w-4 h-4" />;
       case 'ai-text': return <Sparkles className="w-4 h-4" />;
+      default: return null;
     }
   };
 
@@ -139,7 +141,7 @@ export function AddSources({ onGenerate, onLoadTemplate, loading }: AddSourcesPr
         <div>
           <h2 className="mb-2">Add Workout Sources</h2>
           <p className="text-muted-foreground">
-            Transform workout content from Instagram, YouTube, images, or AI text into structured blocks that sync with your watches
+            Transform workout content from YouTube videos, images, or AI text into structured blocks that sync with your watches
           </p>
         </div>
 
@@ -152,11 +154,7 @@ export function AddSources({ onGenerate, onLoadTemplate, loading }: AddSourcesPr
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="instagram">
-                  <Instagram className="w-4 h-4 mr-2" />
-                  Instagram
-                </TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="youtube">
                   <Youtube className="w-4 h-4 mr-2" />
                   YouTube
@@ -171,24 +169,23 @@ export function AddSources({ onGenerate, onLoadTemplate, loading }: AddSourcesPr
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="instagram" className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Instagram Post URL</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="https://instagram.com/p/..."
-                      value={currentInput}
-                      onChange={(e) => setCurrentInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && addSource()}
-                    />
-                    <Button onClick={addSource}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </TabsContent>
-
               <TabsContent value="youtube" className="space-y-4">
+                {/* Show current processing method */}
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <Youtube className="w-4 h-4 text-red-600" />
+                    <div>
+                      <p className="text-sm font-medium">
+                        Processing: Transcript + AI Exercise Extraction
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        OpenAI GPT-4o-mini or Claude 3.5 Sonnet
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="default" className="bg-blue-600">AI-Powered</Badge>
+                </div>
+
                 <div className="space-y-2">
                   <Label>YouTube Video URL</Label>
                   <div className="flex gap-2">
@@ -202,6 +199,22 @@ export function AddSources({ onGenerate, onLoadTemplate, loading }: AddSourcesPr
                       <Plus className="w-4 h-4" />
                     </Button>
                   </div>
+                  
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Step 1:</strong> Transcripts extracted using <a href="https://www.youtube-transcript.io/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">youtube-transcript.io</a>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Step 2:</strong> Exercises extracted from transcript using AI (OpenAI GPT-4o-mini or Anthropic Claude)
+                    </p>
+                  </div>
+
+                  <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <AlertDescription className="text-xs text-blue-800 dark:text-blue-200">
+                      <strong>Free Tier:</strong> 25 transcripts per month. See <span className="font-medium">Settings → General → YouTube Ingestion</span> for more info.
+                    </AlertDescription>
+                  </Alert>
                 </div>
               </TabsContent>
 
