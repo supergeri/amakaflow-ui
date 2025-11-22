@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Youtube, Image, Sparkles, Plus, Trash2, Loader2, Upload, X, Eye, Sparkles as VisionIcon } from 'lucide-react';
+import { Youtube, Image, Sparkles, Plus, Trash2, Loader2, Upload, X, Eye, Sparkles as VisionIcon, XCircle } from 'lucide-react';
 import { Source, SourceType, WorkoutStructure } from '../types/workout';
 import { Textarea } from './ui/textarea';
 import { WorkoutTemplates } from './WorkoutTemplates';
@@ -17,9 +17,11 @@ interface AddSourcesProps {
   onGenerate: (sources: Source[]) => void;
   onLoadTemplate: (workout: WorkoutStructure) => void;
   loading: boolean;
+  progress?: string | null;
+  onCancel?: () => void;
 }
 
-export function AddSources({ onGenerate, onLoadTemplate, loading }: AddSourcesProps) {
+export function AddSources({ onGenerate, onLoadTemplate, loading, progress, onCancel }: AddSourcesProps) {
   const [sources, setSources] = useState<Source[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [activeTab, setActiveTab] = useState<SourceType>('image');
@@ -386,23 +388,40 @@ export function AddSources({ onGenerate, onLoadTemplate, loading }: AddSourcesPr
         )}
 
         <div className="flex justify-end">
-          <Button
-            size="lg"
-            onClick={handleGenerate}
-            disabled={sources.length === 0 || loading}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generating Structure...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 mr-2" />
-                Generate Structure
-              </>
+          <div className="flex flex-col gap-2">
+            <Button
+              size="lg"
+              onClick={handleGenerate}
+              disabled={sources.length === 0 || loading}
+              className="w-full"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {progress || 'Generating Structure...'}
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generate Structure
+                </>
+              )}
+            </Button>
+            {loading && onCancel && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onCancel}
+                className="w-full"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Cancel
+              </Button>
             )}
-          </Button>
+            {loading && progress && (
+              <p className="text-xs text-muted-foreground text-center">{progress}</p>
+            )}
+          </div>
         </div>
       </div>
 
