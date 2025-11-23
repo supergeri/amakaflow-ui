@@ -13,9 +13,10 @@ type ServiceState = ServiceConfig & {
 
 const SERVICES: ServiceConfig[] = [
   { name: "Workout Ingestor API", url: "http://localhost:8004/version" },
-  { name: "Mapper API", url: "http://localhost:8001/version" },
-  { name: "Strava Sync API", url: "http://localhost:8000/version" },
-  { name: "Garmin Sync API", url: "http://localhost:8002/version" },
+  // Note: Other APIs don't have /version endpoints yet
+  // { name: "Mapper API", url: "http://localhost:8001/version" },
+  // { name: "Strava Sync API", url: "http://localhost:8000/version" },
+  // { name: "Garmin Sync API", url: "http://localhost:8002/version" },
 ];
 
 export function DevSystemStatus() {
