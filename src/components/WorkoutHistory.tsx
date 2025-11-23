@@ -742,379 +742,201 @@ export function WorkoutHistory({ history, onLoadWorkout, onEditWorkout, onUpdate
           <ScrollArea className="flex-1">
             <div className="px-6 py-4">
           {viewingWorkout && (() => {
-            const availableCards = getAvailableCards(viewingWorkout);
-            const showSummary = selectedCards.has('summary') || selectedCards.size === 0;
-            const showBlocks = selectedCards.has('blocks') || selectedCards.size === 0;
-            const showExercises = selectedCards.has('exercises') || selectedCards.size === 0;
-            const showValidation = selectedCards.has('validation') || selectedCards.size === 0;
-            const showSources = selectedCards.has('sources') || selectedCards.size === 0;
-            const showExport = selectedCards.has('export') || selectedCards.size === 0;
+            // Flatten all exercises from all blocks and supersets into a single list
+            const allExercises: Array<{
+              exercise: any;
+              originalName: string;
+              mappedName: string;
+              exerciseType: string;
+              measurement: string;
+              wasMeasurement: string;
+            }> = [];
+            
+            (viewingWorkout.workout?.blocks || []).forEach((block: any) => {
+              // Handle supersets
+              if (block?.supersets && block.supersets.length > 0) {
+                block.supersets.forEach((superset: any) => {
+                  (superset.exercises || []).forEach((exercise: any) => {
+                    const originalName = exercise.name || exercise.exercise || 'Unknown Exercise';
+                    const mappedName = getMappedExerciseName(originalName, viewingWorkout.validation);
+                    const isMapped = mappedName !== originalName;
+                    
+                    // Determine exercise type (from name or type field)
+                    const exerciseType = (exercise.type || originalName || '').toUpperCase();
+                    
+                    // Get current measurement
+                    let measurement = '';
+                    if (exercise.distance_m) {
+                      measurement = `${exercise.distance_m}m`;
+                    } else if (exercise.reps) {
+                      measurement = `${exercise.reps} reps`;
+                    } else if (exercise.duration_sec) {
+                      measurement = `${Math.round(exercise.duration_sec / 60)} min`;
+                    }
+                    
+                    // Get "was" measurement (original value before mapping)
+                    let wasMeasurement = '';
+                    if (isMapped) {
+                      // Try to extract measurement from original name
+                      const originalMatch = originalName.match(/(\d+)\s*(M|m|meters?|reps?|min|sec)/i);
+                      if (originalMatch) {
+                        wasMeasurement = originalMatch[0].toUpperCase();
+                      } else if (exercise.distance_m) {
+                        wasMeasurement = `${exercise.distance_m}M`;
+                      } else if (exercise.reps) {
+                        wasMeasurement = `${exercise.reps}`;
+                      }
+                    }
+                    
+                    allExercises.push({
+                      exercise,
+                      originalName,
+                      mappedName,
+                      exerciseType,
+                      measurement,
+                      wasMeasurement,
+                    });
+                  });
+                });
+              }
+              
+              // Handle block-level exercises
+              if (block?.exercises && block.exercises.length > 0) {
+                block.exercises.forEach((exercise: any) => {
+                  const originalName = exercise.name || exercise.exercise || 'Unknown Exercise';
+                  const mappedName = getMappedExerciseName(originalName, viewingWorkout.validation);
+                  const isMapped = mappedName !== originalName;
+                  
+                  // Determine exercise type
+                  const exerciseType = (exercise.type || originalName || '').toUpperCase();
+                  
+                  // Get current measurement
+                  let measurement = '';
+                  if (exercise.distance_m) {
+                    measurement = `${exercise.distance_m}m`;
+                  } else if (exercise.reps) {
+                    measurement = `${exercise.reps} reps`;
+                  } else if (exercise.duration_sec) {
+                    measurement = `${Math.round(exercise.duration_sec / 60)} min`;
+                  }
+                  
+                  // Get "was" measurement
+                  let wasMeasurement = '';
+                  if (isMapped) {
+                    const originalMatch = originalName.match(/(\d+)\s*(M|m|meters?|reps?|min|sec)/i);
+                    if (originalMatch) {
+                      wasMeasurement = originalMatch[0].toUpperCase();
+                    } else if (exercise.distance_m) {
+                      wasMeasurement = `${exercise.distance_m}M`;
+                    } else if (exercise.reps) {
+                      wasMeasurement = `${exercise.reps}`;
+                    }
+                  }
+                  
+                  allExercises.push({
+                    exercise,
+                    originalName,
+                    mappedName,
+                    exerciseType,
+                    measurement,
+                    wasMeasurement,
+                  });
+                });
+              }
+            });
 
             return (
-              <div className="space-y-6 py-4">
-                {/* Summary Card */}
-                {showSummary && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg">
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Device</div>
-                  <div className="font-medium capitalize">{viewingWorkout.device}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Blocks</div>
-                  <div className="font-medium">{viewingWorkout.workout?.blocks?.length || 0}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Exercises</div>
-                  <div className="font-medium">
-                    {(viewingWorkout.workout?.blocks || []).reduce((sum: number, block: any) => {
-                      if (block?.supersets && block.supersets.length > 0) {
-                        return sum + block.supersets.reduce((s: number, ss: any) => s + (ss?.exercises?.length || 0), 0);
-                      } else if (block?.exercises) {
-                        return sum + (block.exercises.length || 0);
-                      }
-                      return sum;
-                    }, 0)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Created</div>
-                  <div className="font-medium text-sm">{formatDate(viewingWorkout.createdAt)}</div>
-                </div>
-              </div>
-                )}
-
-                {/* Blocks Card - Grid Layout */}
-                {showBlocks && viewingWorkout.workout?.blocks && viewingWorkout.workout.blocks.length > 0 && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold">Workout Blocks</h3>
-                      {viewingWorkout.validation && (
-                        <Badge variant="secondary" className="text-xs">
-                          Post-Validation (Mapped)
-                        </Badge>
+              <div className="py-4">
+                {/* Simple Exercise List */}
+                <div className="space-y-1">
+                  {allExercises.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-3 border-b border-border/50 hover:bg-muted/30 transition-colors">
+                      {/* Chain link/paperclip icon on left */}
+                      <Link2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                      
+                      {/* Exercise details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm">{item.mappedName}</div>
+                        {item.wasMeasurement && (
+                          <div className="text-xs text-muted-foreground">was: {item.wasMeasurement}</div>
+                        )}
+                        <div className="text-xs font-semibold text-muted-foreground uppercase mt-0.5">{item.exerciseType}</div>
+                        {item.measurement && (
+                          <div className="text-xs text-muted-foreground mt-0.5">{item.measurement}</div>
+                        )}
+                      </div>
+                      
+                      {/* Edit icon on right */}
+                      {onEditWorkout && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          onClick={() => {
+                            if (viewingWorkout) {
+                              onEditWorkout(viewingWorkout);
+                              setViewingWorkout(null);
+                            }
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
                       )}
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                      {viewingWorkout.workout.blocks.map((block: any, blockIdx: number) => {
-                        const exerciseCount = block.supersets && block.supersets.length > 0
-                          ? block.supersets.reduce((sum: number, ss: any) => sum + (ss?.exercises?.length || 0), 0)
-                          : (block.exercises?.length || 0);
-                        
-                        return (
-                          <Card key={blockIdx} className="border-border/50 hover:shadow-md transition-shadow">
-                            <CardHeader className="pb-2 px-3 pt-3">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <CardTitle className="text-sm font-semibold mb-0.5 leading-tight">
-                                    {block.title || block.name || block.label || `Block ${blockIdx + 1}`}
-                                  </CardTitle>
-                                  {block.structure && (
-                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{block.structure}</p>
-                                  )}
-                                </div>
-                                <div className="bg-primary/10 rounded-full p-1.5 shrink-0">
-                                  <Layers className="w-3 h-3 text-primary" />
-                                </div>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="pt-0 px-3 pb-3 space-y-2">
-                              {/* Supersets */}
-                              {block.supersets && block.supersets.length > 0 && (
-                                <div className="space-y-1.5">
-                                  {block.supersets.map((superset: any, ssIdx: number) => (
-                                    <div key={ssIdx} className="space-y-1">
-                                      {superset.exercises && superset.exercises.length > 0 && (
-                                        <>
-                                          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                                            Superset {ssIdx + 1}
-                                          </div>
-                                          <div className="space-y-1">
-                                            {superset.exercises.map((exercise: any, exIdx: number) => {
-                                              const originalName = exercise.name || exercise.exercise || 'Unknown Exercise';
-                                              const mappedName = getMappedExerciseName(originalName, viewingWorkout.validation);
-                                              const isMapped = mappedName !== originalName;
-                                              
-                                              return (
-                                                <div key={exIdx} className="p-1.5 bg-muted/30 rounded border border-border/50">
-                                                  <div className="flex items-start gap-1.5">
-                                                    <div className="bg-primary/10 rounded-full p-0.5 shrink-0 mt-0.5">
-                                                      <Dumbbell className="w-2.5 h-2.5 text-primary" />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                      <div className="flex items-start justify-between gap-2 mb-0.5">
-                                                        <div className="flex-1 min-w-0">
-                                                          <div className="font-medium text-xs leading-tight">
-                                                            {mappedName}
-                                                          </div>
-                                                          {isMapped && (
-                                                            <div className="text-[9px] text-muted-foreground/70 italic">
-                                                              was: {originalName}
-                                                            </div>
-                                                          )}
-                                                        </div>
-                                                        {onEditWorkout && (
-                                                          <FollowAlongUrlEditor
-                                                            url={exercise.followAlongUrl}
-                                                            onSave={async (url) => {
-                                                              // Update exercise in workout structure
-                                                              const updatedWorkout = { ...viewingWorkout.workout };
-                                                              if (updatedWorkout.blocks?.[blockIdx]?.supersets?.[ssIdx]?.exercises?.[exIdx]) {
-                                                                updatedWorkout.blocks[blockIdx].supersets[ssIdx].exercises[exIdx].followAlongUrl = url;
-                                                                const updatedItem = {
-                                                                  ...viewingWorkout,
-                                                                  workout: updatedWorkout,
-                                                                };
-                                                                // Save updated workout if update handler provided
-                                                                if (onUpdateWorkout) {
-                                                                  await onUpdateWorkout(updatedItem);
-                                                                } else if (onEditWorkout) {
-                                                                  onEditWorkout(updatedItem);
-                                                                }
-                                                              }
-                                                            }}
-                                                            exerciseName={mappedName}
-                                                            compact
-                                                          />
-                                                        )}
-                                                      </div>
-                                                      <div className="flex flex-wrap gap-x-1.5 gap-y-0.5 text-[10px] text-muted-foreground">
-                                                        {exercise.sets && <span>({exercise.sets} sets)</span>}
-                                                        {exercise.reps && <span>{exercise.reps} reps</span>}
-                                                        {exercise.reps_range && <span>{exercise.reps_range}</span>}
-                                                        {exercise.weight && <span>{exercise.weight}</span>}
-                                                        {exercise.duration_sec && <span>{Math.round(exercise.duration_sec / 60)} min</span>}
-                                                        {exercise.distance_m && <span>{exercise.distance_m}m</span>}
-                                                      </div>
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                              );
-                                            })}
-                                          </div>
-                                        </>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              
-                              {/* Regular Exercises */}
-                              {(!block.supersets || block.supersets.length === 0) && block.exercises && block.exercises.length > 0 && (
-                                <div className="space-y-1">
-                                  {block.exercises.map((exercise: any, exIdx: number) => {
-                                    const originalName = exercise.name || exercise.exercise || 'Unknown Exercise';
-                                    const mappedName = getMappedExerciseName(originalName, viewingWorkout.validation);
-                                    const isMapped = mappedName !== originalName;
-                                    
-                                    return (
-                                      <div key={exIdx} className="p-1.5 bg-muted/30 rounded border border-border/50">
-                                        <div className="flex items-start gap-1.5">
-                                          <div className="bg-primary/10 rounded-full p-0.5 shrink-0 mt-0.5">
-                                            <Dumbbell className="w-2.5 h-2.5 text-primary" />
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-2 mb-0.5">
-                                              <div className="flex-1 min-w-0">
-                                                <div className="font-medium text-xs leading-tight">
-                                                  {mappedName}
-                                                </div>
-                                                {isMapped && (
-                                                  <div className="text-[9px] text-muted-foreground/70 italic">
-                                                    was: {originalName}
-                                                  </div>
-                                                )}
-                                              </div>
-                                              {onEditWorkout && (
-                                                <FollowAlongUrlEditor
-                                                  url={exercise.followAlongUrl}
-                                                  onSave={async (url) => {
-                                                    // Update exercise in workout structure
-                                                    const updatedWorkout = { ...viewingWorkout.workout };
-                                                    if (updatedWorkout.blocks?.[blockIdx]?.exercises?.[exIdx]) {
-                                                      updatedWorkout.blocks[blockIdx].exercises[exIdx].followAlongUrl = url;
-                                                      const updatedItem = {
-                                                        ...viewingWorkout,
-                                                        workout: updatedWorkout,
-                                                      };
-                                                      // Save updated workout if update handler provided
-                                                      if (onUpdateWorkout) {
-                                                        await onUpdateWorkout(updatedItem);
-                                                      } else if (onEditWorkout) {
-                                                        onEditWorkout(updatedItem);
-                                                      }
-                                                    }
-                                                  }}
-                                                  exerciseName={mappedName}
-                                                  compact
-                                                />
-                                              )}
-                                            </div>
-                                            <div className="flex flex-wrap gap-x-1.5 gap-y-0.5 text-[10px] text-muted-foreground">
-                                              {exercise.sets && <span>({exercise.sets} sets)</span>}
-                                              {exercise.reps && <span>{exercise.reps} reps</span>}
-                                              {exercise.reps_range && <span>{exercise.reps_range}</span>}
-                                              {exercise.weight && <span>{exercise.weight}</span>}
-                                              {exercise.duration_sec && <span>{Math.round(exercise.duration_sec / 60)} min</span>}
-                                              {exercise.distance_m && <span>{exercise.distance_m}m</span>}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                              
-                              {/* Summary */}
-                              <div className="pt-1.5 border-t border-border/50">
-                                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                                  <span>{exerciseCount} exercise{exerciseCount !== 1 ? 's' : ''}</span>
-                                  {block.supersets && block.supersets.length > 0 && (
-                                    <span>{block.supersets.length} superset{block.supersets.length !== 1 ? 's' : ''}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
+                  ))}
+                  
+                  {allExercises.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No exercises found in this workout
                     </div>
-                  </div>
-                )}
-
-                {/* Sources Card */}
-                {showSources && viewingWorkout.sources && viewingWorkout.sources.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">Sources</h3>
-                  <div className="space-y-2">
-                    {viewingWorkout.sources.map((source: string, idx: number) => {
-                      const [type, ...content] = source.split(':');
-                      return (
-                        <div key={idx} className="p-3 bg-muted/30 rounded-lg">
-                          <div className="text-xs text-muted-foreground mb-1 uppercase">{type}</div>
-                          <div className="text-sm whitespace-pre-wrap">{content.join(':')}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  )}
                 </div>
-              )}
-
-                {/* Validation Card */}
-                {showValidation && viewingWorkout.validation && (
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold">Validation Status</h3>
-                    <Card className="border-border/50">
-                      <CardContent className="pt-4">
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Total Exercises</span>
-                            <span className="font-semibold">{viewingWorkout.validation.total_exercises || 0}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Validated</span>
-                            <span className="font-semibold text-green-600">
-                              {viewingWorkout.validation.validated_exercises?.length || 0}
-                            </span>
-                          </div>
-                          {viewingWorkout.validation.needs_review && viewingWorkout.validation.needs_review.length > 0 && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-muted-foreground">Needs Review</span>
-                              <span className="font-semibold text-yellow-600">
-                                {viewingWorkout.validation.needs_review.length}
-                              </span>
-                            </div>
-                          )}
-                          {viewingWorkout.validation.unmapped_exercises && viewingWorkout.validation.unmapped_exercises.length > 0 && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-muted-foreground">Unmapped</span>
-                              <span className="font-semibold text-red-600">
-                                {viewingWorkout.validation.unmapped_exercises.length}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
-
-                {/* Export Card */}
-                {showExport && viewingWorkout.exports && (
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold">Export Options</h3>
-                    <Card className="border-border/50">
-                      <CardContent className="pt-4">
-                        <div className="space-y-2">
-                          {viewingWorkout.exports.fit && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-muted-foreground">Garmin (.fit)</span>
-                              <Badge variant="secondary">Available</Badge>
-                            </div>
-                          )}
-                          {viewingWorkout.exports.plist && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-muted-foreground">Apple Watch (.plist)</span>
-                              <Badge variant="secondary">Available</Badge>
-                            </div>
-                          )}
-                          {viewingWorkout.exports.zwo && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-muted-foreground">Zwift (.zwo)</span>
-                              <Badge variant="secondary">Available</Badge>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex gap-2 pt-4 border-t">
-                {viewingWorkout.exports && (
-                  <Button
-                    onClick={() => handleExport(viewingWorkout)}
-                    className="gap-2"
-                    variant="default"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export to {getDeviceById(viewingWorkout.device as DeviceId)?.name || viewingWorkout.device}
-                  </Button>
-                )}
-                {onEditWorkout && (
+                
+                {/* Actions at bottom */}
+                <div className="flex gap-2 pt-6 mt-6 border-t">
+                  {viewingWorkout.exports && (
+                    <Button
+                      onClick={() => handleExport(viewingWorkout)}
+                      className="gap-2"
+                      variant="default"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export to {getDeviceById(viewingWorkout.device as DeviceId)?.name || viewingWorkout.device}
+                    </Button>
+                  )}
+                  {onEditWorkout && (
+                    <Button
+                      onClick={() => {
+                        if (viewingWorkout) {
+                          onEditWorkout(viewingWorkout);
+                          setViewingWorkout(null);
+                        }
+                      }}
+                      variant={viewingWorkout.exports ? "outline" : "default"}
+                      className="gap-2"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Edit Workout
+                    </Button>
+                  )}
                   <Button
                     onClick={() => {
                       if (viewingWorkout) {
-                        onEditWorkout(viewingWorkout);
+                        onLoadWorkout(viewingWorkout);
                         setViewingWorkout(null);
                       }
                     }}
-                    variant={viewingWorkout.exports ? "outline" : "default"}
+                    variant="outline"
                     className="gap-2"
                   >
-                    <Edit className="w-4 h-4" />
-                    Edit Workout
+                    Load Workout
                   </Button>
-                )}
-                <Button
-                  onClick={() => {
-                    if (viewingWorkout) {
-                      onLoadWorkout(viewingWorkout);
-                      setViewingWorkout(null);
-                    }
-                  }}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  Load Workout
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setViewingWorkout(null)}
-                >
-                  Close
-                </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setViewingWorkout(null)}
+                  >
+                    Close
+                  </Button>
                 </div>
               </div>
             );
