@@ -76,9 +76,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
   const [showWorkoutSelector, setShowWorkoutSelector] = useState(false);
   const [isAddingToStrava, setIsAddingToStrava] = useState(false);
   const stravaConnected = isAccountConnectedSync('strava');
-  
-  // Debug: Log to help troubleshoot
-  console.log('PublishExport - stravaConnected:', stravaConnected, 'workout:', !!workout);
 
   const copyToClipboard = async (text: string, format: string) => {
     try {
@@ -471,12 +468,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Add to Strava button - Only show if Strava is connected */}
-          {/* Debug info */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="text-xs text-muted-foreground p-2 bg-muted rounded">
-              Debug: stravaConnected={String(stravaConnected)}, workout={workout ? 'exists' : 'null'}
-            </div>
-          )}
           {stravaConnected && workout && (
             <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
               <div className="flex-1">
