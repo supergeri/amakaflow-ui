@@ -16,6 +16,8 @@ import { StravaEnhance } from './components/StravaEnhance';
 import { ProfileCompletion } from './components/ProfileCompletion';
 import { WelcomeGuide } from './components/WelcomeGuide';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import BuildBadge from './components/BuildBadge';
+import { DevSystemStatus } from './components/DevSystemStatus';
 import { WorkoutStructure, ExportFormats, ValidationResponse } from './types/workout';
 import { generateWorkoutStructure as generateWorkoutStructureReal, checkApiHealth, normalizeWorkoutStructure } from './lib/api';
 import { generateWorkoutStructure as generateWorkoutStructureMock } from './lib/mock-api';
@@ -1497,6 +1499,12 @@ export default function App() {
         confirmText="Continue"
         cancelText="Cancel"
       />
+
+      {/* Dev-only build info badge (hidden in production) */}
+      <BuildBadge />
+
+      {/* Dev-only connected services status (hidden in production) */}
+      <DevSystemStatus />
     </div>
   );
 }
