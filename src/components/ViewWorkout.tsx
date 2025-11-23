@@ -279,7 +279,7 @@ export function ViewWorkout({ workout, onClose }: Props) {
 
                                     return (
                                       <div
-                                        key={exercise.id || `exercise-${blockIdx}-${exerciseIdx}`}
+                                        key={exercise.id || `superset-${blockIdx}-${supersetIdx}-exercise-${exerciseIdx}`}
                                         className="flex items-start justify-between p-3 bg-background border rounded-md"
                                       >
                                         <div className="flex-1">
