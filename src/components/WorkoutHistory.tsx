@@ -53,7 +53,7 @@ export function WorkoutHistory({ history, onLoadWorkout, onEditWorkout, onUpdate
   const [viewingWorkout, setViewingWorkout] = useState<WorkoutHistoryItem | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'cards' | 'compact'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'compact'>('compact');
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'summary' | 'detail'>('summary');
