@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/generate-build-info.mjs",
     "build": "vite build",
     "test": "vitest",
     "test:ui": "vitest --ui",
