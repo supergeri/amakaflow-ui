@@ -5,7 +5,7 @@ import { Badge } from './ui/badge';
 import { X, Clock, Watch, Bike, Dumbbell } from 'lucide-react';
 import { WorkoutHistoryItem } from '../lib/workout-history';
 import { Block, Exercise } from '../types/workout';
-import { getDeviceById, DeviceId } from '../lib/devices';
+// Removed unused import: getDeviceById, DeviceId
 import { getStructureDisplayName } from '../lib/workout-utils';
 
 type Props = {
@@ -52,63 +52,7 @@ function formatDate(dateString: string): string {
   });
 }
 
-// Helper function to get exercise measurement display
-function getExerciseMeasurement(exercise: Exercise): string {
-  if (exercise.distance_m) {
-    return `${exercise.distance_m}m`;
-  }
-  if (exercise.distance_range) {
-    return exercise.distance_range;
-  }
-  if (exercise.reps) {
-    return `${exercise.reps} reps`;
-  }
-  if (exercise.reps_range) {
-    return `${exercise.reps_range} reps`;
-  }
-  if (exercise.duration_sec) {
-    const minutes = Math.round(exercise.duration_sec / 60);
-    return `${minutes} min`;
-  }
-  return '';
-}
-
-// Helper function to get block structure info string
-function getBlockStructureInfo(block: Block): string {
-  const parts: string[] = [];
-  
-  // Count total exercises in block (block-level + supersets)
-  const blockExercises = (block.exercises || []).length;
-  const supersetExercises = (block.supersets || []).reduce(
-    (sum, ss) => sum + (ss.exercises?.length || 0),
-    0
-  );
-  const totalExercises = blockExercises + supersetExercises;
-  
-  // Add rounds if present
-  if (block.rounds) {
-    parts.push(`${block.rounds} rounds`);
-  }
-  
-  // Add exercises count
-  if (totalExercises > 0) {
-    parts.push(`${totalExercises} exercise${totalExercises !== 1 ? 's' : ''}`);
-  }
-  
-  // Add sets if present
-  if (block.sets) {
-    parts.push(`${block.sets} sets`);
-  }
-  
-  // Add rest periods
-  if (block.rest_between_rounds_sec) {
-    parts.push(`${block.rest_between_rounds_sec}s rest`);
-  } else if (block.rest_between_sets_sec) {
-    parts.push(`${block.rest_between_sets_sec}s rest`);
-  }
-  
-  return parts.length > 0 ? parts.join(' • ') : '';
-}
+// Removed unused helper functions: getExerciseMeasurement, getBlockStructureInfo
 
 // Helper function to count total exercises in a block
 function countBlockExercises(block: Block): number {
@@ -121,7 +65,15 @@ function countBlockExercises(block: Block): number {
 }
 
 export function ViewWorkout({ workout, onClose }: Props) {
-  const workoutData = workout.workout;
+  // Debug logging
+  console.log('=== ViewWorkout Debug ===');
+  console.log('1. Full workout prop:', workout);
+  console.log('2. workout.workout:', workout.workout);
+  console.log('3. workout.workout.title:', workout.workout?.title);
+  console.log('4. workout.workout.blocks:', workout.workout?.blocks);
+  console.log('========================');
+
+  const workoutData = workout.workout || workout.data || workout;
   const blocks = workoutData?.blocks || [];
   const hasExports = !!(workout.exports);
 
@@ -168,7 +120,7 @@ export function ViewWorkout({ workout, onClose }: Props) {
       onClick={onClose}
     >
       <Card
-        className="w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden"
+        className="w-full max-w-4xl h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Section (Fixed) */}
@@ -176,7 +128,9 @@ export function ViewWorkout({ workout, onClose }: Props) {
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 mb-2">
-                <CardTitle className="text-2xl">{workoutData?.title || 'Untitled Workout'}</CardTitle>
+                <CardTitle className="text-2xl">
+                  {workoutData?.title || workout.title || 'Untitled Workout'}
+                </CardTitle>
                 <Badge variant={hasExports ? 'default' : 'secondary'}>
                   {hasExports ? 'Ready' : 'Draft'}
                 </Badge>
@@ -213,7 +167,7 @@ export function ViewWorkout({ workout, onClose }: Props) {
         </CardHeader>
 
         {/* Content Area (Scrollable) */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6">
           {blocks.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
               <Dumbbell className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -235,7 +189,9 @@ export function ViewWorkout({ workout, onClose }: Props) {
                     <div className="bg-muted px-4 py-3 border-b">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h3 className="font-semibold">{block.label || `Block ${blockIdx + 1}`}</h3>
+                          <h3 className="font-semibold">
+                            {block.label || block.name || block.type || `Block ${blockIdx + 1}`}
+                          </h3>
                           {blockMetadata && (
                             <p className="text-xs text-muted-foreground mt-1">
                               {blockMetadata}
@@ -255,7 +211,7 @@ export function ViewWorkout({ workout, onClose }: Props) {
 
                             return (
                               <div
-                                key={exercise.id || exerciseIdx}
+                                key={exercise.id || `exercise-${blockIdx}-${exerciseIdx}`}
                                 className="flex items-start justify-between p-3 bg-background border rounded-md"
                               >
                                 <div className="flex-1">
@@ -323,7 +279,7 @@ export function ViewWorkout({ workout, onClose }: Props) {
 
                                     return (
                                       <div
-                                        key={exercise.id || exerciseIdx}
+                                        key={exercise.id || `exercise-${blockIdx}-${exerciseIdx}`}
                                         className="flex items-start justify-between p-3 bg-background border rounded-md"
                                       >
                                         <div className="flex-1">
