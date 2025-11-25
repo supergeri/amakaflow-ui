@@ -254,30 +254,38 @@ export function getWorkoutHistoryFromLocalStorage(): WorkoutHistoryItem[] {
  * Delete a workout from both API and localStorage
  */
 export async function deleteWorkoutFromHistory(id: string, profileId?: string): Promise<boolean> {
+  let apiDeleted = true; // Default to true if no profileId (localStorage only)
+  
   // Try to delete from API first if profileId is provided
   if (profileId) {
     try {
       const { deleteWorkoutFromAPI } = await import('./workout-api');
-      const deleted = await deleteWorkoutFromAPI(id, profileId);
-      if (deleted) {
+      apiDeleted = await deleteWorkoutFromAPI(id, profileId);
+      if (apiDeleted) {
         console.log(`Workout ${id} deleted from API`);
+      } else {
+        console.error(`Failed to delete workout ${id} from API`);
       }
     } catch (error) {
       console.error('Failed to delete workout from API:', error);
-      // Continue to delete from localStorage anyway
+      apiDeleted = false;
     }
   }
   
-  // Delete from localStorage
+  // Always delete from localStorage (it's a cache, should be cleared regardless)
   try {
     const history = getWorkoutHistoryFromLocalStorage();
     const filtered = history.filter(item => item.id !== id);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(filtered));
-    return true;
+    console.log(`Workout ${id} deleted from localStorage`);
   } catch (error) {
     console.error('Failed to delete workout from localStorage:', error);
+    // If localStorage deletion fails, return false
     return false;
   }
+  
+  // Return true only if API deletion succeeded (or if no profileId, meaning localStorage-only)
+  return apiDeleted;
 }
 
 export function clearWorkoutHistory(): void {
