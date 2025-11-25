@@ -160,6 +160,14 @@ export async function getFollowAlong(id: string, userId: string): Promise<GetFol
  * Uses mapper-api endpoint
  */
 export async function pushToGarmin(id: string, userId: string): Promise<PushToGarminResponse> {
+  // Guard: Check if unofficial Garmin sync is enabled
+  if (import.meta.env.VITE_GARMIN_UNOFFICIAL_SYNC_ENABLED !== "true") {
+    console.warn("Garmin Sync disabled — awaiting official Garmin approval.");
+    return {
+      status: "error",
+      message: "Garmin Sync is disabled — awaiting official Garmin approval.",
+    };
+  }
   
   const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along/${id}/push/garmin`, {
     method: "POST",

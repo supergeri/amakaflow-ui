@@ -15,7 +15,7 @@ const SERVICES: ServiceConfig[] = [
   { name: "Workout Ingestor API", url: "http://localhost:8004/version" },
   { name: "Mapper API", url: "http://localhost:8001/mappings" }, // Use existing endpoint to check if API is up
   { name: "Strava Sync API", url: "http://localhost:8000/health" },
-  { name: "Garmin Sync API", url: "http://localhost:8002/health" },
+  { name: "Garmin Sync API (UNOFFICIAL – TEST ONLY)", url: "http://localhost:8002/health" },
 ];
 
 export function DevSystemStatus() {
