@@ -1380,37 +1380,20 @@ export default function App() {
                 // Optimistically remove from UI immediately
                 setWorkoutHistoryList(prev => prev.filter(item => item.id !== id));
                 
-                const { deleteWorkoutFromHistory, getWorkoutHistory } = await import('./lib/workout-history');
+                const { deleteWorkoutFromHistory } = await import('./lib/workout-history');
                 const deleted = await deleteWorkoutFromHistory(id, user?.id);
                 
                 if (deleted) {
                   toast.success('Workout deleted');
-                  // Wait a moment for the deletion to propagate, then refresh history
-                  await new Promise(resolve => setTimeout(resolve, 500));
-                  
-                  // Refresh history to ensure consistency
-                  if (user) {
-                    try {
-                      const history = await getWorkoutHistory(user.id);
-                      setWorkoutHistoryList(history);
-                    } catch (error) {
-                      console.error('Failed to refresh workout history:', error);
-                      // If refresh fails, the optimistic update already removed it from UI
-                    }
-                  } else {
-                    // For localStorage-only, refresh immediately
-                    try {
-                      const { getWorkoutHistoryFromLocalStorage } = await import('./lib/workout-history');
-                      const history = getWorkoutHistoryFromLocalStorage();
-                      setWorkoutHistoryList(history);
-                    } catch (error) {
-                      console.error('Failed to refresh localStorage history:', error);
-                    }
-                  }
+                  // Don't refresh - the optimistic update is sufficient
+                  // Refreshing can bring back the workout due to merge/deduplication logic
+                  // If the workout was successfully deleted from both API and localStorage,
+                  // it won't appear on the next page load anyway
                 } else {
-                  // Revert optimistic update if deletion failed
+                  // Revert optimistic update if deletion completely failed
                   if (user) {
                     try {
+                      const { getWorkoutHistory } = await import('./lib/workout-history');
                       const history = await getWorkoutHistory(user.id);
                       setWorkoutHistoryList(history);
                     } catch (error) {
@@ -1424,8 +1407,9 @@ export default function App() {
                 // Revert optimistic update on error
                 if (user) {
                   try {
+                    const { getWorkoutHistory } = await import('./lib/workout-history');
                     const history = await getWorkoutHistory(user.id);
-                      setWorkoutHistoryList(history);
+                    setWorkoutHistoryList(history);
                   } catch (error) {
                     console.error('Failed to refresh workout history after error:', error);
                   }
