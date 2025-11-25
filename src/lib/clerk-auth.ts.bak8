@@ -83,10 +83,20 @@ export async function getUserProfileFromClerk(clerkUserId: string): Promise<User
       return null;
     }
 
-    // selected_devices is always a JSON array
-    const selectedDevices = (data.selected_devices ?? []) as DeviceId[];
-    // exportGarminUsb defaults to false (will be stored in separate column later)
-    const exportGarminUsb = false;
+    // Handle selected_devices: can be array (old format) or object (new format with exportGarminUsb)
+    let selectedDevices: DeviceId[] = [];
+    let exportGarminUsb = false;
+
+    if (data.selected_devices) {
+      if (Array.isArray(data.selected_devices)) {
+        // Old format: just an array
+        selectedDevices = data.selected_devices as DeviceId[];
+      } else if (typeof data.selected_devices === 'object') {
+        // New format: object with devices array and exportGarminUsb flag
+        selectedDevices = (data.selected_devices.devices ?? []) as DeviceId[];
+        exportGarminUsb = data.selected_devices.exportGarminUsb ?? false;
+      }
+    }
 
     return {
       id: data.id,
@@ -96,6 +106,7 @@ export async function getUserProfileFromClerk(clerkUserId: string): Promise<User
       workoutsThisWeek: data.workouts_this_week || 0,
       selectedDevices,
         exportGarminUsb,
+      exportGarminUsb,
       billingDate: data.billing_date ? new Date(data.billing_date) : undefined,
     };
   } catch (error: any) {
@@ -165,6 +176,7 @@ export async function syncClerkUserToProfile(clerkUser: any): Promise<User | nul
           // New format: { devices: DeviceId[]; exportGarminUsb?: boolean }
           const raw = insertData.selected_devices as {
             exportGarminUsb?: boolean;
+          };
 
           if (Array.isArray(raw.devices)) {
             selectedDevices = raw.devices;
@@ -187,16 +199,24 @@ export async function syncClerkUserToProfile(clerkUser: any): Promise<User | nul
         workoutsThisWeek: insertData.workouts_this_week || 0,
         selectedDevices,
         exportGarminUsb,
+        exportGarminUsb,
         billingDate: insertData.billing_date ? new Date(insertData.billing_date) : undefined,
       };
     }
 
     // RPC function returns the profile
     if (data) {
-      // selected_devices is always a JSON array
-      const selectedDevices = (data.selected_devices ?? []) as DeviceId[];
-      // exportGarminUsb defaults to false (will be stored in separate column later)
-      const exportGarminUsb = false;
+      // Handle selected_devices format
+      let selectedDevices: DeviceId[] = [];
+      let exportGarminUsb = false;
+      if (data.selected_devices) {
+        if (Array.isArray(data.selected_devices)) {
+          selectedDevices = data.selected_devices as DeviceId[];
+        } else if (typeof data.selected_devices === 'object') {
+          selectedDevices = (data.selected_devices.devices ?? []) as DeviceId[];
+          exportGarminUsb = data.selected_devices.exportGarminUsb ?? false;
+        }
+      }
       return {
         id: data.id,
         email: data.email,
@@ -205,6 +225,7 @@ export async function syncClerkUserToProfile(clerkUser: any): Promise<User | nul
         workoutsThisWeek: data.workouts_this_week || 0,
         selectedDevices,
         exportGarminUsb,
+      exportGarminUsb,
         billingDate: data.billing_date ? new Date(data.billing_date) : undefined,
       };
     }
@@ -228,14 +249,22 @@ export async function updateUserProfileFromClerk(clerkUserId: string, updates: P
     if (updates.name !== undefined) updateData.name = updates.name;
     if (updates.subscription !== undefined) updateData.subscription = updates.subscription;
     if (updates.workoutsThisWeek !== undefined) updateData.workouts_this_week = updates.workoutsThisWeek;
-    // selected_devices is always a JSON array
+    // selectedDevices maps directly to selected_devices JSON array
     if (updates.selectedDevices !== undefined) {
       updateData.selected_devices = updates.selectedDevices;
     }
 
-    // Note: exportGarminUsb is not persisted yet (will be stored in separate column later)
+    // For now we do NOT persist exportGarminUsb to Supabase.
+    // We'll add a dedicated column later when the DB is ready.
+
+    // If nothing except updated_at changed, just return
+    if (Object.keys(updateData).length <= 1) {
+      return { data: null, error: null };
     }
-    if (updates.billingDate !== undefined) updateData.billing_date = updates.billingDate.toISOString();
+
+    if (updates.billingDate !== undefined) {
+      updateData.billing_date = updates.billingDate.toISOString();
+    }
 
     const { data, error } = await supabase
       .from('profiles')
@@ -250,4 +279,3 @@ export async function updateUserProfileFromClerk(clerkUserId: string, updates: P
     return { data: null, error };
   }
 }
-

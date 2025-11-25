@@ -77,14 +77,19 @@ export async function getUserProfileFromClerk(clerkUserId: string): Promise<User
       }
       console.error('Error fetching user profile:', error);
       throw error;
+    }
 
     if (!data) {
       return null;
+    }
 
-    // selected_devices is always a JSON array
-    const selectedDevices = (data.selected_devices ?? []) as DeviceId[];
-    // exportGarminUsb defaults to false (will be stored in separate column later)
-    const exportGarminUsb = false;
+        let selectedDevices: DeviceId[] = [];    if (data.selected_devices) {
+      if (Array.isArray(data.selected_devices)) {
+        // Old format: just an array
+        selectedDevices = data.selected_devices as DeviceId[];
+      } else if (typeof data.selected_devices === 'object') {
+                selectedDevices = (data.selected_devices.devices ?? []) as DeviceId[];      }
+    }
 
     return {
       id: data.id,
@@ -93,7 +98,6 @@ export async function getUserProfileFromClerk(clerkUserId: string): Promise<User
       subscription: data.subscription || 'free',
       workoutsThisWeek: data.workouts_this_week || 0,
       selectedDevices,
-        exportGarminUsb,
       billingDate: data.billing_date ? new Date(data.billing_date) : undefined,
     };
   } catch (error: any) {
@@ -109,6 +113,7 @@ export async function syncClerkUserToProfile(clerkUser: any): Promise<User | nul
   try {
     if (!clerkUser?.id) {
       throw new Error('Clerk user ID is required');
+    }
 
     // Check if profile exists
     const existingProfile = await getUserProfileFromClerk(clerkUser.id);
@@ -116,6 +121,7 @@ export async function syncClerkUserToProfile(clerkUser: any): Promise<User | nul
     if (existingProfile) {
       // Profile exists, return it
       return existingProfile;
+    }
 
     // Profile doesn't exist, create it using the helper function
     const email = clerkUser.primaryEmailAddress?.emailAddress || clerkUser.emailAddresses?.[0]?.emailAddress || '';
@@ -149,28 +155,18 @@ export async function syncClerkUserToProfile(clerkUser: any): Promise<User | nul
       if (insertError) {
         console.error('Error creating profile via direct insert:', insertError);
         throw insertError;
-      // ---- Normalize selected_devices / exportGarminUsb ----
-      let selectedDevices: DeviceId[] = [];
-      let exportGarminUsb = false;
-
-      if (insertData.selected_devices) {
+            let selectedDevices: DeviceId[] = [];      if (insertData.selected_devices) {
         if (Array.isArray(insertData.selected_devices)) {
           // Old format: just an array of device ids
           selectedDevices = insertData.selected_devices as DeviceId[];
         } else if (typeof insertData.selected_devices === 'object') {
-          // New format: { devices: DeviceId[]; exportGarminUsb?: boolean }
-          const raw = insertData.selected_devices as {
+                    const raw = insertData.selected_devices as {
             exportGarminUsb?: boolean;
+          };
 
           if (Array.isArray(raw.devices)) {
             selectedDevices = raw.devices;
-          }
-
-          if (typeof raw.exportGarminUsb === 'boolean') {
-            exportGarminUsb = raw.exportGarminUsb;
-          }
-        }
-      }
+          }      }
 
       }
 
@@ -182,16 +178,19 @@ export async function syncClerkUserToProfile(clerkUser: any): Promise<User | nul
         subscription: insertData.subscription || 'free',
         workoutsThisWeek: insertData.workouts_this_week || 0,
         selectedDevices,
-        exportGarminUsb,
         billingDate: insertData.billing_date ? new Date(insertData.billing_date) : undefined,
       };
+    }
 
     // RPC function returns the profile
     if (data) {
-      // selected_devices is always a JSON array
-      const selectedDevices = (data.selected_devices ?? []) as DeviceId[];
-      // exportGarminUsb defaults to false (will be stored in separate column later)
-      const exportGarminUsb = false;
+      // Handle selected_devices format
+      let selectedDevices: DeviceId[] = [];      if (data.selected_devices) {
+        if (Array.isArray(data.selected_devices)) {
+          selectedDevices = data.selected_devices as DeviceId[];
+        } else if (typeof data.selected_devices === 'object') {
+          selectedDevices = (data.selected_devices.devices ?? []) as DeviceId[];        }
+      }
       return {
         id: data.id,
         email: data.email,
@@ -199,9 +198,9 @@ export async function syncClerkUserToProfile(clerkUser: any): Promise<User | nul
         subscription: data.subscription || 'free',
         workoutsThisWeek: data.workouts_this_week || 0,
         selectedDevices,
-        exportGarminUsb,
         billingDate: data.billing_date ? new Date(data.billing_date) : undefined,
       };
+    }
 
     throw new Error('Failed to create profile');
   } catch (error: any) {
@@ -222,12 +221,21 @@ export async function updateUserProfileFromClerk(clerkUserId: string, updates: P
     if (updates.name !== undefined) updateData.name = updates.name;
     if (updates.subscription !== undefined) updateData.subscription = updates.subscription;
     if (updates.workoutsThisWeek !== undefined) updateData.workouts_this_week = updates.workoutsThisWeek;
-    // selected_devices is always a JSON array
+    // selectedDevices maps directly to selected_devices JSON array
     if (updates.selectedDevices !== undefined) {
       updateData.selected_devices = updates.selectedDevices;
+    }
 
-    // Note: exportGarminUsb is not persisted yet (will be stored in separate column later)
-    if (updates.billingDate !== undefined) updateData.billing_date = updates.billingDate.toISOString();
+        // We'll add a dedicated column later when the DB is ready.
+
+    // If nothing except updated_at changed, just return
+    if (Object.keys(updateData).length <= 1) {
+      return { data: null, error: null };
+    }
+
+    if (updates.billingDate !== undefined) {
+      updateData.billing_date = updates.billingDate.toISOString();
+    }
 
     const { data, error } = await supabase
       .from('profiles')
@@ -242,4 +250,3 @@ export async function updateUserProfileFromClerk(clerkUserId: string, updates: P
     return { data: null, error };
   }
 }
-

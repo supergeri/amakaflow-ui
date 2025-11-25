@@ -76,10 +76,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
   const [showWorkoutSelector, setShowWorkoutSelector] = useState(false);
   const [isAddingToStrava, setIsAddingToStrava] = useState(false);
   const stravaConnected = isAccountConnectedSync('strava');
-  // Check if user has Garmin USB FIT export enabled
-  const selectedDevices = clerkUser?.selectedDevices || [];
-  const hasGarminUsb = Array.isArray(selectedDevices) && selectedDevices.includes('garmin_usb');
-  console.log('DEBUG PublishExport hasGarminUsb =', hasGarminUsb);
 
   const copyToClipboard = async (text: string, format: string) => {
     try {
@@ -234,12 +230,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
     // if (savedWorkoutId) {
     //   await updateWorkoutExportStatus(savedWorkoutId, profileId, true, selectedDevice);
     // }
-  };
-
-  const handleDownloadGarminUsbFit = () => {
-    // TODO: Replace this with real FIT generation / download
-    console.log('Download FIT for Garmin (USB) clicked');
-    toast.info('Garmin USB FIT export coming soon');
   };
 
   const handleAddToStrava = async () => {
@@ -629,16 +619,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
                   </>
                 )}
               </Button>
-            {hasGarminUsb && (
-              <Button
-                variant="secondary"
-                onClick={handleDownloadGarminUsbFit}
-                className="flex-1"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download FIT for Garmin (USB)
-              </Button>
-            )}
             </div>
           )}
 
@@ -670,16 +650,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
               <Send className="w-4 h-4 mr-2" />
               Sync to {deviceExport.deviceName}
             </Button>
-            {hasGarminUsb && (
-              <Button
-                variant="secondary"
-                onClick={handleDownloadGarminUsbFit}
-                className="flex-1"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download FIT for Garmin (USB)
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>

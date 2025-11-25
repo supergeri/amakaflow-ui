@@ -629,16 +629,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
                   </>
                 )}
               </Button>
-            {hasGarminUsb && (
-              <Button
-                variant="secondary"
-                onClick={handleDownloadGarminUsbFit}
-                className="flex-1"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download FIT for Garmin (USB)
-              </Button>
-            )}
             </div>
           )}
 
@@ -670,16 +660,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
               <Send className="w-4 h-4 mr-2" />
               Sync to {deviceExport.deviceName}
             </Button>
-            {hasGarminUsb && (
-              <Button
-                variant="secondary"
-                onClick={handleDownloadGarminUsbFit}
-                className="flex-1"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download FIT for Garmin (USB)
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>

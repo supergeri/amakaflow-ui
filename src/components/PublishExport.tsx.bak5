@@ -560,6 +560,17 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Sync to {deviceExport.deviceName}</CardTitle>
+            </Button>
+            {hasGarminUsb && (
+              <Button
+                variant="secondary"
+                onClick={handleDownloadGarminUsbFit}
+                className="flex-1"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download FIT for Garmin (USB)
+              </Button>
+            )}
               <CardDescription>
                 Your workout is ready to be synced to your {deviceExport.deviceName} device
               </CardDescription>
@@ -629,16 +640,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
                   </>
                 )}
               </Button>
-            {hasGarminUsb && (
-              <Button
-                variant="secondary"
-                onClick={handleDownloadGarminUsbFit}
-                className="flex-1"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download FIT for Garmin (USB)
-              </Button>
-            )}
             </div>
           )}
 
@@ -680,6 +681,7 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
                 Download FIT for Garmin (USB)
               </Button>
             )}
+            </Button>
           </div>
         </CardContent>
       </Card>
