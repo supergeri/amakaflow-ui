@@ -147,11 +147,20 @@ function ExerciseDropZone({
   label?: string;
   supersetIdx?: number;
 }) {
+  // Sort exercises by addedAt timestamp (oldest first, newest last)
+  // If no timestamp, treat as very old (put at top)
+  const sortedExercises = [...exercises].sort((a, b) => {
+    const aTime = a.addedAt || 0;
+    const bTime = b.addedAt || 0;
+    return aTime - bTime; // Oldest first
+  });
   const [{ isOver }, drop] = useDrop(() => ({
     accept: ItemTypes.EXERCISE,
-    drop: (item: DraggableExerciseData) => {
-      // Pass supersetIdx if this is a superset drop zone
-      onDrop(item, exercises.length, supersetIdx);
+    drop: (item: DraggableExerciseData, monitor) => {
+      // Calculate target index based on drop position within the zone
+      // For now, append to end, but this could be enhanced to detect position
+      const targetIdx = exercises.length;
+      onDrop(item, targetIdx, supersetIdx);
     },
     collect: (monitor) => ({
       isOver: monitor.isOver(),
@@ -176,17 +185,21 @@ function ExerciseDropZone({
           Drop exercise here or click Add Exercise
         </div>
       )}
-      {exercises.map((exercise, idx) => (
-        <DraggableExercise
-          key={exercise.id || idx}
-          exercise={exercise}
-          blockIdx={blockIdx}
-          exerciseIdx={idx}
-          supersetIdx={supersetIdx}
-          onEdit={() => onEdit(idx)}
-          onDelete={() => onDelete(idx)}
-        />
-      ))}
+      {sortedExercises.map((exercise, idx) => {
+        // Find original index in unsorted array for callbacks
+        const originalIdx = exercises.findIndex(ex => ex.id === exercise.id);
+        return (
+          <DraggableExercise
+            key={exercise.id || idx}
+            exercise={exercise}
+            blockIdx={blockIdx}
+            exerciseIdx={originalIdx !== -1 ? originalIdx : idx}
+            supersetIdx={supersetIdx}
+            onEdit={() => onEdit(originalIdx !== -1 ? originalIdx : idx)}
+            onDelete={() => onDelete(originalIdx !== -1 ? originalIdx : idx)}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -378,7 +391,7 @@ function DraggableBlock({
           </CardHeader>
           {!isCollapsed && (
             <CardContent className="space-y-4">
-              {/* Supersets */}
+              {/* Supersets - always show first */}
               {(block.supersets || []).length > 0 && (
                 <div className="space-y-3">
                   {(block.supersets || []).map((superset, supersetIdx) => (
@@ -435,12 +448,16 @@ function DraggableBlock({
                 </div>
               )}
 
-              {/* Block-level exercises drop zone - always show (after supersets if they exist) */}
+              {/* Block-level exercises - always show AFTER supersets, sorted by addedAt (oldest first, newest last) */}
               <div>
                 <ExerciseDropZone
                   blockIdx={blockIdx}
                   exercises={block.exercises || []}
-                  onDrop={(item, targetIdx) => onExerciseDrop(item, targetIdx)}
+                  onDrop={(item, targetIdx) => {
+                    // Always append to the end of block-level exercises (will be at bottom after sorting)
+                    const finalTargetIdx = (block.exercises || []).length;
+                    onExerciseDrop(item, finalTargetIdx);
+                  }}
                   onEdit={(idx) => onEditExercise(idx)}
                   onDelete={(idx) => onDeleteExercise(idx)}
                   label={(block.exercises || []).length > 0 ? "Exercises" : undefined}
@@ -526,6 +543,9 @@ export function StructureWorkout({
     workout?.blocks?.map(b => b?.exercises?.map(e => e?.id || '').join(',') || '').join('|') || '',
     workout?.blocks?.map(b => b?.supersets?.map(ss => ss?.id || '').join(',') || '').join('|') || '',
     workout?.blocks?.map(b => b?.supersets?.map(ss => ss?.exercises?.map(e => e?.id || '').join(',') || '').join('|') || '').join('||') || '',
+    // Include exercise names to detect when new exercises are added
+    workout?.blocks?.map(b => b?.exercises?.map(e => e?.name || '').join(',') || '').join('|') || '',
+    workout?.blocks?.map(b => b?.supersets?.map(ss => ss?.exercises?.map(e => e?.name || '').join(',') || '').join('|') || '').join('||') || '',
     // Include exercise properties to detect changes to distance, duration, reps, etc.
     workout?.blocks?.map(b => 
       b?.exercises?.map(e => 
@@ -585,29 +605,75 @@ export function StructureWorkout({
     targetExerciseIdx: number,
     targetSupersetIdx?: number
   ) => {
-    const newWorkout = JSON.parse(JSON.stringify(workoutWithIds));
+    // Use the current workout prop directly to ensure we have the latest state
+    const currentWorkout = workout || workoutWithIds;
+    const newWorkout = JSON.parse(JSON.stringify(currentWorkout));
     
-    // Get exercise from source (block-level or superset)
-    let draggedExercise: Exercise | undefined;
+    // Use the exercise from the drag item directly (it's already captured)
+    const draggedExercise = item.exercise;
+    
+    // Remove exercise from source location - find by ID first, then by name as fallback
+    let removed = false;
+    
     if (item.supersetIdx !== undefined) {
       // Remove from source superset
-      const superset = newWorkout.blocks[item.blockIdx].supersets?.[item.supersetIdx];
-      if (superset && superset.exercises && superset.exercises[item.exerciseIdx]) {
-        draggedExercise = superset.exercises.splice(item.exerciseIdx, 1)[0];
+      const superset = newWorkout.blocks[item.blockIdx]?.supersets?.[item.supersetIdx];
+      if (superset && superset.exercises) {
+        // Try to find and remove by ID
+        const idxById = superset.exercises.findIndex(ex => ex && ex.id === item.exercise.id);
+        if (idxById !== -1) {
+          superset.exercises.splice(idxById, 1);
+          removed = true;
+        } else {
+          // Fallback: try to find by name
+          const idxByName = superset.exercises.findIndex(ex => ex && ex.name === item.exercise.name);
+          if (idxByName !== -1) {
+            superset.exercises.splice(idxByName, 1);
+            removed = true;
+          }
+        }
       }
     } else {
       // Remove from source block-level exercises
-      if (!newWorkout.blocks[item.blockIdx].exercises) {
-        newWorkout.blocks[item.blockIdx].exercises = [];
-      }
-      if (newWorkout.blocks[item.blockIdx].exercises[item.exerciseIdx]) {
-        draggedExercise = newWorkout.blocks[item.blockIdx].exercises.splice(item.exerciseIdx, 1)[0];
+      const block = newWorkout.blocks[item.blockIdx];
+      if (block && block.exercises) {
+        // Try to find and remove by ID
+        const idxById = block.exercises.findIndex(ex => ex && ex.id === item.exercise.id);
+        if (idxById !== -1) {
+          block.exercises.splice(idxById, 1);
+          removed = true;
+        } else {
+          // Fallback: try to find by name
+          const idxByName = block.exercises.findIndex(ex => ex && ex.name === item.exercise.name);
+          if (idxByName !== -1) {
+            block.exercises.splice(idxByName, 1);
+            removed = true;
+          }
+        }
       }
     }
     
-    // If exercise wasn't found, abort
-    if (!draggedExercise) {
-      console.error('Could not find exercise to drag');
+    // Log warning if we couldn't remove from source, but continue anyway (exercise might have been moved already)
+    if (!removed) {
+      console.warn('Could not find exercise to remove from source (may have been moved already)', {
+        blockIdx: item.blockIdx,
+        exerciseIdx: item.exerciseIdx,
+        supersetIdx: item.supersetIdx,
+        exerciseId: item.exercise.id,
+        exerciseName: item.exercise.name,
+        availableExercises: item.supersetIdx !== undefined 
+          ? newWorkout.blocks[item.blockIdx]?.supersets?.[item.supersetIdx]?.exercises?.map(e => ({ id: e?.id, name: e?.name }))
+          : newWorkout.blocks[item.blockIdx]?.exercises?.map(e => ({ id: e?.id, name: e?.name }))
+      });
+      // Continue anyway - the exercise might have been moved already or the source might be different
+    }
+    
+    // Check if we're dropping in the same location (no-op)
+    if (item.blockIdx === targetBlockIdx && 
+        item.supersetIdx === targetSupersetIdx && 
+        sourceExerciseIdx !== undefined &&
+        sourceExerciseIdx === targetExerciseIdx) {
+      // Same location, no change needed
       return;
     }
     
@@ -627,13 +693,27 @@ export function StructureWorkout({
       if (!newWorkout.blocks[targetBlockIdx].supersets[targetSupersetIdx].exercises) {
         newWorkout.blocks[targetBlockIdx].supersets[targetSupersetIdx].exercises = [];
       }
-      newWorkout.blocks[targetBlockIdx].supersets[targetSupersetIdx].exercises.splice(targetExerciseIdx, 0, draggedExercise);
+      // Adjust target index if dragging within the same superset
+      let adjustedTargetIdx = targetExerciseIdx;
+      if (item.blockIdx === targetBlockIdx && item.supersetIdx === targetSupersetIdx && sourceExerciseIdx !== undefined) {
+        if (sourceExerciseIdx < targetExerciseIdx) {
+          adjustedTargetIdx = targetExerciseIdx - 1;
+        }
+      }
+      newWorkout.blocks[targetBlockIdx].supersets[targetSupersetIdx].exercises.splice(adjustedTargetIdx, 0, draggedExercise);
     } else {
       // Add to target block-level exercises
       if (!newWorkout.blocks[targetBlockIdx].exercises) {
         newWorkout.blocks[targetBlockIdx].exercises = [];
       }
-      newWorkout.blocks[targetBlockIdx].exercises.splice(targetExerciseIdx, 0, draggedExercise);
+      // Adjust target index if dragging within the same block-level exercises
+      let adjustedTargetIdx = targetExerciseIdx;
+      if (item.blockIdx === targetBlockIdx && item.supersetIdx === undefined && sourceExerciseIdx !== undefined) {
+        if (sourceExerciseIdx < targetExerciseIdx) {
+          adjustedTargetIdx = targetExerciseIdx - 1;
+        }
+      }
+      newWorkout.blocks[targetBlockIdx].exercises.splice(adjustedTargetIdx, 0, draggedExercise);
     }
     
     onWorkoutChange(newWorkout);
@@ -691,11 +771,12 @@ export function StructureWorkout({
       distance_m: null,
       distance_range: null,
       type: 'strength',
-      notes: null
+      notes: null,
+      addedAt: Date.now() // Track when exercise was added for sorting
     };
     
     if (supersetIdx !== undefined) {
-      // Add to superset
+      // Add to superset - always append to end
       if (!newWorkout.blocks[blockIdx].supersets) {
         newWorkout.blocks[blockIdx].supersets = [];
       }
@@ -711,7 +792,7 @@ export function StructureWorkout({
       }
       newWorkout.blocks[blockIdx].supersets[supersetIdx].exercises.push(newExercise);
     } else {
-      // Add to block-level exercises
+      // Add to block-level exercises - always append to end (will be at bottom after sorting)
       if (!newWorkout.blocks[blockIdx].exercises) {
         newWorkout.blocks[blockIdx].exercises = [];
       }

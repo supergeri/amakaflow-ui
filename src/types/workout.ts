@@ -13,6 +13,7 @@ export interface Exercise {
   type: 'strength' | 'cardio' | 'HIIT' | 'interval' | string;
   followAlongUrl?: string | null; // Instagram, TikTok, YouTube, or any video URL for this exercise
   notes?: string | null;
+  addedAt?: number; // Timestamp when exercise was added (for sorting - oldest first, newest last)
 }
 
 export type WorkoutStructureType = 
