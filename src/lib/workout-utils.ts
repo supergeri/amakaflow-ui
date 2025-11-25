@@ -38,6 +38,14 @@ export function addIdsToWorkout(workout: WorkoutStructure): WorkoutStructure {
           id: exercise.id || generateId(), // Required field
         })),
       })),
+      supersets: (block.supersets || []).map(superset => ({
+        ...superset,
+        id: superset.id || generateId(),
+        exercises: (superset.exercises || []).map(exercise => ({
+          ...exercise,
+          id: exercise.id || generateId(),
+        })),
+      })),
     })),
   };
 }
