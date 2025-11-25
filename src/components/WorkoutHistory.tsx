@@ -62,6 +62,35 @@ export function WorkoutHistory({ history, onLoadWorkout, onEditWorkout, onUpdate
   // Ensure history is an array
   const safeHistory = Array.isArray(history) ? history : [];
   
+  // Selection state for bulk delete
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const isAllSelected =
+    safeHistory.length > 0 &&
+    selectedIds.length === safeHistory.length;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(
+        safeHistory
+          .map((w) => w.id)
+          .filter((id): id is string => Boolean(id))
+      );
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+  
   const handleDeleteClick = (id: string) => {
     setConfirmDeleteId(id);
   };
