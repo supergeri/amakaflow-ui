@@ -343,6 +343,25 @@ let healthCheckCache: { result: boolean; timestamp: number } | null = null;
 const HEALTH_CHECK_CACHE_DURATION = 5000; // Cache for 5 seconds
 
 /**
+ * Create an empty workout structure via API
+ */
+export async function createEmptyWorkout(): Promise<WorkoutStructure> {
+  try {
+    const workout = await apiCall<WorkoutStructure>('/workouts/create-empty', {
+      method: 'POST',
+    });
+    
+    // Normalize the workout structure to ensure it's compatible with StructureWorkout component
+    return normalizeWorkoutStructure(workout);
+  } catch (error: any) {
+    // Fallback to local creation if API fails
+    console.warn('Failed to create empty workout via API, using local fallback:', error);
+    const { createEmptyWorkout: createEmptyWorkoutLocal } = await import('./workout-utils');
+    return createEmptyWorkoutLocal();
+  }
+}
+
+/**
  * Check if the API is available
  */
 export async function checkApiHealth(): Promise<boolean> {

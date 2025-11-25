@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
-import { Search, Dumbbell } from 'lucide-react';
+import { Search, Dumbbell, Loader2 } from 'lucide-react';
 import { DeviceId } from '../lib/devices';
 
 type Props = {
@@ -13,7 +13,19 @@ type Props = {
   device: DeviceId;
 };
 
-// Mock exercise library - in real app this would come from API
+interface WgerExercise {
+  id: number;
+  name: string;
+  description_plain: string;
+  category: string | null;
+  primary_muscles: string[];
+  secondary_muscles: string[];
+  equipment: string[];
+  image_urls: string[];
+  source: string;
+}
+
+// Mock exercise library - fallback if API fails
 const EXERCISE_LIBRARY: Record<DeviceId, Array<{ name: string; category: string; confidence: number }>> = {
   garmin: [
     { name: 'Barbell Back Squat', category: 'Strength', confidence: 0.95 },
@@ -69,13 +81,54 @@ const EXERCISE_LIBRARY: Record<DeviceId, Array<{ name: string; category: string;
 
 export function ExerciseSearch({ onSelect, onClose, device }: Props) {
   const [search, setSearch] = useState('');
-  const [filteredExercises, setFilteredExercises] = useState(EXERCISE_LIBRARY[device]);
+  const [exercises, setExercises] = useState<WgerExercise[]>([]);
+  const [filteredExercises, setFilteredExercises] = useState<WgerExercise[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const categories = [...new Set(EXERCISE_LIBRARY[device].map(e => e.category))];
-
+  // Fetch exercises from WGER API
   useEffect(() => {
-    let results = EXERCISE_LIBRARY[device];
+    const fetchExercises = async () => {
+      try {
+        setLoading(true);
+        const API_BASE_URL = import.meta.env.VITE_INGESTOR_API_URL || 'http://localhost:8004';
+        const response = await fetch(`${API_BASE_URL}/exercises/wger`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch exercises: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        setExercises(data.exercises || []);
+        setError(null);
+      } catch (err: any) {
+        console.warn('Failed to fetch WGER exercises, using fallback:', err);
+        setError('Using limited exercise library');
+        // Fallback to mock data
+        const mockExercises: WgerExercise[] = EXERCISE_LIBRARY[device].map((ex, idx) => ({
+          id: idx,
+          name: ex.name,
+          description_plain: '',
+          category: ex.category,
+          primary_muscles: [],
+          secondary_muscles: [],
+          equipment: [],
+          image_urls: [],
+          source: 'mock'
+        }));
+        setExercises(mockExercises);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchExercises();
+  }, [device]);
+
+  // Filter exercises
+  useEffect(() => {
+    let results = exercises;
 
     // Filter by category
     if (selectedCategory) {
@@ -84,19 +137,28 @@ export function ExerciseSearch({ onSelect, onClose, device }: Props) {
 
     // Filter by search
     if (search) {
+      const searchLower = search.toLowerCase();
       results = results.filter(e =>
-        e.name.toLowerCase().includes(search.toLowerCase())
+        e.name.toLowerCase().includes(searchLower) ||
+        e.description_plain.toLowerCase().includes(searchLower) ||
+        e.primary_muscles.some(m => m.toLowerCase().includes(searchLower)) ||
+        e.equipment.some(eq => eq.toLowerCase().includes(searchLower))
       );
     }
 
     setFilteredExercises(results);
-  }, [search, selectedCategory, device]);
+  }, [search, selectedCategory, exercises]);
+
+  const categories = [...new Set(exercises.map(e => e.category).filter(Boolean))] as string[];
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Add Exercise</DialogTitle>
+          <DialogDescription>
+            Search and select an exercise from the WGER exercise database, or create a custom exercise.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -133,36 +195,66 @@ export function ExerciseSearch({ onSelect, onClose, device }: Props) {
             ))}
           </div>
 
-          {/* Results */}
-          <ScrollArea className="h-[400px]">
-            <div className="space-y-2 pr-4">
-              {filteredExercises.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Dumbbell className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                  <p>No exercises found</p>
-                  <p className="text-sm">Try a different search term</p>
-                </div>
-              ) : (
-                filteredExercises.map((exercise, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => onSelect(exercise.name)}
-                    className="w-full text-left p-3 border rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{exercise.name}</p>
-                        <p className="text-sm text-muted-foreground">{exercise.category}</p>
-                      </div>
-                      <Badge variant="outline">
-                        {Math.round(exercise.confidence * 100)}% match
-                      </Badge>
-                    </div>
-                  </button>
-                ))
-              )}
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Loading exercises...</span>
             </div>
-          </ScrollArea>
+          )}
+
+          {/* Error Message */}
+          {error && !loading && (
+            <div className="text-sm text-yellow-600 bg-yellow-50 p-2 rounded">
+              {error}
+            </div>
+          )}
+
+          {/* Results */}
+          {!loading && (
+            <ScrollArea className="h-[400px]">
+              <div className="space-y-2 pr-4">
+                {filteredExercises.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Dumbbell className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p>No exercises found</p>
+                    <p className="text-sm">Try a different search term</p>
+                  </div>
+                ) : (
+                  filteredExercises.map((exercise) => (
+                    <button
+                      key={exercise.id}
+                      onClick={() => onSelect(exercise.name)}
+                      className="w-full text-left p-3 border rounded-lg hover:bg-muted transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="font-medium">{exercise.name}</p>
+                          {exercise.category && (
+                            <p className="text-sm text-muted-foreground">{exercise.category}</p>
+                          )}
+                          {exercise.primary_muscles.length > 0 && (
+                            <div className="flex gap-1 mt-1 flex-wrap">
+                              {exercise.primary_muscles.slice(0, 3).map((muscle, idx) => (
+                                <Badge key={idx} variant="secondary" className="text-xs">
+                                  {muscle}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {exercise.source === 'wger' && (
+                          <Badge variant="outline" className="text-xs">
+                            WGER
+                          </Badge>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          )}
 
           {/* Custom Exercise */}
           {search && filteredExercises.length === 0 && (

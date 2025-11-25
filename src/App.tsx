@@ -609,15 +609,20 @@ export default function App() {
   };
 
   const handleCreateNew = async () => {
-    const { createEmptyWorkout } = await import('./lib/workout-utils');
-    const emptyWorkout = createEmptyWorkout();
-    setWorkout(emptyWorkout);
-    setSources([]);
-    setCurrentStep('structure');
-    setWorkoutSaved(false); // New workout, not saved yet
-    setIsCreatingFromScratch(true); // Mark as creating from scratch
-    setIsEditingFromHistory(false); // Not from history
-    toast.success('Created new workout. Start building your workout structure!');
+    try {
+      const { createEmptyWorkout } = await import('./lib/api');
+      const emptyWorkout = await createEmptyWorkout();
+      setWorkout(emptyWorkout);
+      setSources([]);
+      setCurrentStep('structure');
+      setWorkoutSaved(false); // New workout, not saved yet
+      setIsCreatingFromScratch(true); // Mark as creating from scratch
+      setIsEditingFromHistory(false); // Not from history
+      toast.success('Created new workout. Start building your workout structure!');
+    } catch (error: any) {
+      console.error('Failed to create empty workout:', error);
+      toast.error('Failed to create workout. Please try again.');
+    }
   };
 
   const handleAutoMap = async () => {
