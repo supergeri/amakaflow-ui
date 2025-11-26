@@ -1,3 +1,4 @@
+import { ENABLE_GARMIN_DEBUG } from './env';
 import type {
   FollowAlongWorkout,
   IngestFollowAlongRequest,
@@ -169,10 +170,16 @@ export async function pushToGarmin(id: string, userId: string, scheduleDate?: st
     };
   }
   
+  const body = { userId, scheduleDate: scheduleDate || null };
+  
+  if (ENABLE_GARMIN_DEBUG) {
+    console.log("=== FRONTEND_FOLLOW_ALONG_REQUEST ===", body);
+  }
+  
   const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along/${id}/push/garmin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, scheduleDate: scheduleDate || null }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -184,6 +191,10 @@ export async function pushToGarmin(id: string, userId: string, scheduleDate?: st
   }
 
   const result = await response.json();
+  
+  if (ENABLE_GARMIN_DEBUG) {
+    console.log("=== FRONTEND_FOLLOW_ALONG_RESPONSE ===", result);
+  }
   
   if (result.status === "already_synced") {
     return {
