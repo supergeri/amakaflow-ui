@@ -10,3 +10,12 @@
  */
 export const ENABLE_GARMIN_USB_EXPORT =
   import.meta.env.VITE_ENABLE_GARMIN_USB_EXPORT === 'true';
+
+/**
+ * Feature flag: Enable Garmin Debug mode
+ * 
+ * Set VITE_ENABLE_GARMIN_DEBUG=true in .env.local to enable.
+ * Default: false (disabled)
+ */
+export const ENABLE_GARMIN_DEBUG =
+  import.meta.env.VITE_ENABLE_GARMIN_DEBUG === 'true';

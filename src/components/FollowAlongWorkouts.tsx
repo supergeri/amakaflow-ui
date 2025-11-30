@@ -6,9 +6,9 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
-import { Play, Clock, List, CheckCircle2, ExternalLink, Plus, Loader2, CalendarIcon } from 'lucide-react';
+import { Play, Clock, List, CheckCircle2, ExternalLink, Plus, Loader2, CalendarIcon, Smartphone } from 'lucide-react';
 // Using native Date formatting
-import { ingestFollowAlong, listFollowAlong, getFollowAlong, pushToGarmin, pushToAppleWatch } from '../lib/follow-along-api';
+import { ingestFollowAlong, listFollowAlong, getFollowAlong, pushToGarmin, pushToAppleWatch, pushToIOSCompanion } from '../lib/follow-along-api';
 import type { FollowAlongWorkout } from '../types/follow-along';
 import { toast } from 'sonner';
 import { useClerkUser } from '../lib/clerk-auth';
@@ -19,7 +19,7 @@ export function FollowAlongWorkouts() {
   const [workouts, setWorkouts] = useState<FollowAlongWorkout[]>([]);
   const [loading, setLoading] = useState(false);
   const [ingesting, setIngesting] = useState(false);
-  const [instagramUrl, setInstagramUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<FollowAlongWorkout | null>(null);
   const [showIngestDialog, setShowIngestDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
@@ -59,8 +59,8 @@ export function FollowAlongWorkouts() {
   };
 
   const handleIngest = async () => {
-    if (!instagramUrl.trim()) {
-      toast.error('Please enter an Instagram URL');
+    if (!videoUrl.trim()) {
+      toast.error('Please enter a video URL');
       return;
     }
 
@@ -71,9 +71,9 @@ export function FollowAlongWorkouts() {
 
     setIngesting(true);
     try {
-      const result = await ingestFollowAlong(instagramUrl, clerkUser.id);
+      const result = await ingestFollowAlong(videoUrl, clerkUser.id);
       setWorkouts([result.followAlongWorkout, ...workouts]);
-      setInstagramUrl('');
+      setVideoUrl('');
       setShowIngestDialog(false);
       toast.success('Workout extracted successfully!');
     } catch (error: any) {
@@ -132,21 +132,6 @@ export function FollowAlongWorkouts() {
       setIsSyncing(false);
     }
   };
-      const dateToUse = scheduleDate || new Date().toISOString().split('T')[0];
-      const result = await pushToGarmin(workoutId, clerkUser.id, dateToUse);
-      if (result.status === 'success') {
-        toast.success('Workout synced to Garmin via Unofficial API!');
-        loadWorkouts(); // Refresh to update sync status
-        setShowGarminDatePicker(false);
-        setGarminSyncDate(new Date());
-        setWorkoutToSync(null);
-      } else {
-        toast.error(result.message || 'Failed to sync to Garmin');
-      }
-    } catch (error: any) {
-      toast.error(`Failed to sync to Garmin: ${error.message}`);
-    }
-  };
 
   const handleGarminSyncClick = (workoutId: string) => {
     setWorkoutToSync(workoutId);
@@ -180,6 +165,25 @@ export function FollowAlongWorkouts() {
     }
   };
 
+  const handlePushToIOSCompanion = async (workoutId: string) => {
+    if (!clerkUser?.id) {
+      toast.error('Please sign in to sync workouts');
+      return;
+    }
+
+    try {
+      const result = await pushToIOSCompanion(workoutId, clerkUser.id);
+      if (result.status === 'success') {
+        toast.success('Workout sent to iOS Companion App! Open the app to start your follow-along workout.');
+        loadWorkouts(); // Refresh to update sync status
+      } else {
+        toast.error(result.message || 'Failed to sync to iOS Companion');
+      }
+    } catch (error: any) {
+      toast.error(`Failed to sync to iOS Companion: ${error.message}`);
+    }
+  };
+
   const formatDuration = (seconds?: number) => {
     if (!seconds) return 'Unknown';
     const mins = Math.floor(seconds / 60);
@@ -192,7 +196,7 @@ export function FollowAlongWorkouts() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Follow-Along Workouts</h2>
-          <p className="text-muted-foreground">Extract and sync Instagram workout videos</p>
+          <p className="text-muted-foreground">Extract and sync workout videos from Instagram, YouTube, TikTok & more</p>
         </div>
         <FollowAlongInstructions />
         <Dialog open={showIngestDialog} onOpenChange={setShowIngestDialog}>
@@ -204,18 +208,18 @@ export function FollowAlongWorkouts() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add Instagram Workout</DialogTitle>
+              <DialogTitle>Add Video Workout</DialogTitle>
               <DialogDescription>
-                Paste an Instagram workout post URL to extract and follow along
+                Paste a workout video URL from Instagram, YouTube, TikTok, or Vimeo
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <Input
-                placeholder="https://www.instagram.com/p/..."
-                value={instagramUrl}
-                onChange={(e) => setInstagramUrl(e.target.value)}
+                placeholder="https://youtube.com/watch?v=... or instagram.com/p/..."
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
               />
-              <Button onClick={handleIngest} disabled={ingesting || !instagramUrl.trim()}>
+              <Button onClick={handleIngest} disabled={ingesting || !videoUrl.trim()}>
                 {ingesting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -239,7 +243,7 @@ export function FollowAlongWorkouts() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Play className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground">No follow-along workouts yet</p>
-            <p className="text-sm text-muted-foreground mt-2">Add an Instagram workout to get started</p>
+            <p className="text-sm text-muted-foreground mt-2">Add a workout video to get started</p>
           </CardContent>
         </Card>
       ) : (
@@ -283,6 +287,12 @@ export function FollowAlongWorkouts() {
                     <Badge variant="outline" className="text-xs">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                       Apple Watch
+                    </Badge>
+                  )}
+                  {workout.iosCompanionSyncedAt && (
+                    <Badge variant="outline" className="text-xs bg-blue-50">
+                      <Smartphone className="h-3 w-3 mr-1" />
+                      iOS App
                     </Badge>
                   )}
                 </div>
@@ -385,6 +395,27 @@ export function FollowAlongWorkouts() {
                           </>
                         ) : (
                           'Send to Apple Watch'
+                        )}
+                      </Button>
+                      <Button
+                        variant={selectedWorkout.iosCompanionSyncedAt ? "outline" : "default"}
+                        size="sm"
+                        className="w-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePushToIOSCompanion(selectedWorkout.id);
+                        }}
+                      >
+                        {selectedWorkout.iosCompanionSyncedAt ? (
+                          <>
+                            <Smartphone className="mr-2 h-4 w-4" />
+                            Sent to iOS App - Tap to Resync
+                          </>
+                        ) : (
+                          <>
+                            <Smartphone className="mr-2 h-4 w-4" />
+                            Send to iOS Companion (Follow-Along)
+                          </>
                         )}
                       </Button>
                     </CardContent>

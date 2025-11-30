@@ -7,6 +7,8 @@ import type {
   GetFollowAlongResponse,
   PushToGarminResponse,
   PushToAppleWatchResponse,
+  PushToIOSCompanionResponse,
+  VideoPlatform,
 } from "../types/follow-along";
 
 const MAPPER_API_BASE_URL = import.meta.env.VITE_MAPPER_API_URL || "http://localhost:8001";
@@ -255,5 +257,75 @@ export async function pushToAppleWatch(
     appleWatchWorkoutId: result.appleWatchWorkoutId,
     payload: result.payload,
   };
+}
+
+/**
+ * Push follow-along workout to iOS Companion App
+ * Returns payload formatted for the iOS app's WorkoutFlowView
+ * Includes full video URLs for follow-along experience
+ */
+export async function pushToIOSCompanion(
+  id: string,
+  userId: string
+): Promise<PushToIOSCompanionResponse> {
+  
+  const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along/${id}/push/ios-companion`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    return {
+      status: "error",
+      message: error.message || `Failed to sync to iOS Companion: ${response.statusText}`,
+    };
+  }
+
+  const result = await response.json();
+  
+  if (!result.success) {
+    return {
+      status: "error",
+      message: result.message || "Failed to sync to iOS Companion",
+    };
+  }
+
+  return {
+    status: result.status,
+    iosCompanionWorkoutId: result.iosCompanionWorkoutId,
+    payload: result.payload,
+  };
+}
+
+/**
+ * Detect video platform from URL
+ */
+export function detectVideoPlatform(url: string): VideoPlatform {
+  if (!url) return 'other';
+  
+  const lowerUrl = url.toLowerCase();
+  
+  if (lowerUrl.includes('instagram.com')) return 'instagram';
+  if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'youtube';
+  if (lowerUrl.includes('tiktok.com')) return 'tiktok';
+  if (lowerUrl.includes('vimeo.com')) return 'vimeo';
+  
+  return 'other';
+}
+
+/**
+ * Validate if a URL is a supported video platform
+ */
+export function isValidVideoUrl(url: string): boolean {
+  if (!url) return false;
+  
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
 }
 

@@ -3,7 +3,7 @@ import { Toaster, toast } from 'sonner@2.0.3';
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react';
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
-import { Dumbbell, Settings, ChevronRight, ArrowLeft, History, BarChart3, Users, Activity } from 'lucide-react';
+import { Dumbbell, Settings, ChevronRight, ArrowLeft, History, BarChart3, Users, Activity, Video } from 'lucide-react';
 import { AddSources, Source } from './components/AddSources';
 import { StructureWorkout } from './components/StructureWorkout';
 import { ValidateMap } from './components/ValidateMap';
@@ -16,6 +16,7 @@ import { StravaEnhance } from './components/StravaEnhance';
 import { ProfileCompletion } from './components/ProfileCompletion';
 import { WelcomeGuide } from './components/WelcomeGuide';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { FollowAlongWorkouts } from './components/FollowAlongWorkouts';
 import BuildBadge from './components/BuildBadge';
 import { DevSystemStatus } from './components/DevSystemStatus';
 import { WorkoutStructure, ExportFormats, ValidationResponse } from './types/workout';
@@ -39,7 +40,7 @@ type AppUser = User & {
 };
 
 type WorkflowStep = 'add-sources' | 'structure' | 'validate' | 'export';
-type View = 'home' | 'workflow' | 'profile' | 'history' | 'analytics' | 'team' | 'settings' | 'strava-enhance';
+type View = 'home' | 'workflow' | 'profile' | 'history' | 'analytics' | 'team' | 'settings' | 'strava-enhance' | 'follow-along';
 
 export default function App() {
   // Clerk authentication
@@ -1143,6 +1144,20 @@ export default function App() {
                   <Users className="w-4 h-4" />
                   Team
                 </Button>
+                <Button
+                  variant={currentView === 'follow-along' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => {
+                    checkUnsavedChanges(() => {
+                      clearWorkflowState();
+                      setCurrentView('follow-along');
+                    });
+                  }}
+                  className="gap-2"
+                >
+                  <Video className="w-4 h-4" />
+                  Follow Along
+                </Button>
                 {stravaConnected && (
                   <Button
                     variant={currentView === 'strava-enhance' ? 'default' : 'ghost'}
@@ -1544,6 +1559,10 @@ export default function App() {
           <StravaEnhance
             onClose={() => setCurrentView('workflow')}
           />
+        )}
+
+        {currentView === 'follow-along' && (
+          <FollowAlongWorkouts />
         )}
       </div>
 

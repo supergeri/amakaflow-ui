@@ -4,6 +4,8 @@ export type CanonicalExerciseRef = {
   muscleGroups: string[];
 };
 
+export type VideoPlatform = 'instagram' | 'youtube' | 'tiktok' | 'vimeo' | 'other';
+
 export type FollowAlongStep = {
   id: string;
   order: number;
@@ -16,12 +18,16 @@ export type FollowAlongStep = {
   targetDurationSec?: number;
   intensityHint?: "easy" | "moderate" | "hard";
   notes?: string;
+  // Video reference for this specific step
+  followAlongUrl?: string;
+  carouselPosition?: number; // For Instagram carousels - which slide to show
+  videoStartTimeSec?: number; // For YouTube/Vimeo - timestamp to start at
 };
 
 export type FollowAlongWorkout = {
   id: string;
   userId: string;
-  source: "instagram";
+  source: VideoPlatform;
   sourceUrl: string;
   title: string;
   description?: string;
@@ -35,6 +41,7 @@ export type FollowAlongWorkout = {
   garminLastSyncAt?: string | null;
   appleWatchWorkoutId?: string;
   appleWatchLastSyncAt?: string | null;
+  iosCompanionSyncedAt?: string | null; // When synced to iOS companion app
 };
 
 export type IngestFollowAlongRequest = {
@@ -72,6 +79,42 @@ export type PushToAppleWatchResponse = {
       durationSec: number;
     }>;
   };
+  message?: string;
+};
+
+// iOS Companion App sync - includes full video URLs for follow-along flow
+export type PushToIOSCompanionRequest = {
+  userId: string;
+};
+
+export type IOSCompanionWorkoutPayload = {
+  id: string;
+  name: string;
+  sport: 'strength' | 'cardio' | 'mobility' | 'other';
+  duration: number; // seconds
+  source: VideoPlatform;
+  sourceUrl?: string;
+  intervals: IOSCompanionInterval[];
+};
+
+export type IOSCompanionInterval = {
+  kind: 'warmup' | 'cooldown' | 'time' | 'reps' | 'distance' | 'repeat';
+  seconds?: number;
+  target?: string;
+  reps?: number;
+  name?: string;
+  load?: string;
+  restSec?: number;
+  meters?: number;
+  intervals?: IOSCompanionInterval[]; // For repeat blocks
+  followAlongUrl?: string;
+  carouselPosition?: number;
+};
+
+export type PushToIOSCompanionResponse = {
+  status: "success" | "error";
+  iosCompanionWorkoutId?: string;
+  payload?: IOSCompanionWorkoutPayload;
   message?: string;
 };
 
