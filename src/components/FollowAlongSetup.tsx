@@ -30,12 +30,15 @@ import {
   Play,
   Link,
   X,
-  Clock
+  Clock,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { WorkoutStructure, Block, Exercise } from '../types/workout';
 
 type VideoSourceType = 'original' | 'custom' | 'none';
+type VoiceContentType = 'name' | 'name-reps' | 'name-notes';
 
 interface StepConfig {
   exerciseId: string;
@@ -43,6 +46,11 @@ interface StepConfig {
   videoSource: VideoSourceType;
   customUrl: string;
   startTimeSec: number;
+}
+
+interface VoiceSettings {
+  enabled: boolean;
+  content: VoiceContentType;
 }
 
 interface FollowAlongSetupProps {
@@ -69,6 +77,55 @@ function parseTime(timeStr: string): number {
   return parseInt(timeStr, 10) || 0;
 }
 
+// Build speech text based on exercise and content setting
+function buildSpeechText(exercise: Exercise, content: VoiceContentType): string {
+  const name = exercise.name;
+  
+  switch (content) {
+    case 'name':
+      return name;
+    case 'name-reps':
+      const repsInfo = exercise.reps 
+        ? `${exercise.sets || 3} sets of ${exercise.reps} reps`
+        : exercise.duration_sec
+        ? `${exercise.sets || 1} sets of ${exercise.duration_sec} seconds`
+        : '';
+      return repsInfo ? `${name}. ${repsInfo}` : name;
+    case 'name-notes':
+      const notes = exercise.notes ? `. ${exercise.notes}` : '';
+      return `${name}${notes}`;
+    default:
+      return name;
+  }
+}
+
+// Speak text using Web Speech API
+function speakText(text: string): void {
+  if ('speechSynthesis' in window) {
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9; // Slightly slower for clarity
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    
+    // Try to use a good English voice
+    const voices = window.speechSynthesis.getVoices();
+    const englishVoice = voices.find(v => 
+      v.lang.startsWith('en') && (v.name.includes('Samantha') || v.name.includes('Daniel') || v.name.includes('Google'))
+    ) || voices.find(v => v.lang.startsWith('en'));
+    
+    if (englishVoice) {
+      utterance.voice = englishVoice;
+    }
+    
+    window.speechSynthesis.speak(utterance);
+  } else {
+    toast.error('Speech synthesis not supported in this browser');
+  }
+}
+
 export function FollowAlongSetup({ workout, userId, sourceUrl }: FollowAlongSetupProps) {
   const [enabled, setEnabled] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
@@ -79,8 +136,25 @@ export function FollowAlongSetup({ workout, userId, sourceUrl }: FollowAlongSetu
   const [sendTarget, setSendTarget] = useState<'ios' | 'watch' | 'both' | null>(null);
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [isLoadingDuration, setIsLoadingDuration] = useState(false);
+  
+  // Voice settings
+  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({
+    enabled: true,
+    content: 'name-reps',
+  });
 
   const MAPPER_API_BASE_URL = import.meta.env.VITE_MAPPER_API_URL || 'http://localhost:8001';
+
+  // Load voices when component mounts (needed for some browsers)
+  useEffect(() => {
+    if ('speechSynthesis' in window) {
+      // Chrome needs this to load voices
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+  }, []);
 
   // Fetch video duration when sourceUrl changes
   useEffect(() => {
@@ -190,6 +264,19 @@ export function FollowAlongSetup({ workout, userId, sourceUrl }: FollowAlongSetu
     setPreviewTimestamp(timestamp);
   };
 
+  // Preview voice for a specific exercise
+  const handleVoicePreview = (exercise: Exercise) => {
+    const text = buildSpeechText(exercise, voiceSettings.content);
+    speakText(text);
+  };
+
+  // Preview voice for first exercise
+  const handleVoicePreviewFirst = () => {
+    if (workout?.blocks?.[0]?.exercises?.[0]) {
+      handleVoicePreview(workout.blocks[0].exercises[0]);
+    }
+  };
+
   const handleSend = async (target: 'ios' | 'watch' | 'both') => {
     if (!workout || !userId) {
       toast.error('Workout data or user missing');
@@ -208,6 +295,7 @@ export function FollowAlongSetup({ workout, userId, sourceUrl }: FollowAlongSetu
           workout,
           sourceUrl: sourceUrl || '',
           stepConfigs: stepConfigs,
+          voiceSettings: voiceSettings,
         }),
       });
 
@@ -327,29 +415,81 @@ export function FollowAlongSetup({ workout, userId, sourceUrl }: FollowAlongSetu
             </Button>
           </div>
 
-          {/* Original Video Source */}
-          {sourceUrl && (
-            <div className="flex items-center justify-between p-3 border rounded-lg">
+          {/* Voice Guidance Settings */}
+          <div className="p-3 border rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
+                {voiceSettings.enabled ? (
+                  <Volume2 className="w-4 h-4 text-primary" />
+                ) : (
+                  <VolumeX className="w-4 h-4 text-muted-foreground" />
+                )}
+                <Label className="text-sm font-medium">Voice Guidance</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={voiceSettings.enabled}
+                  onCheckedChange={(checked) => 
+                    setVoiceSettings(prev => ({ ...prev, enabled: checked }))
+                  }
+                />
+              </div>
+            </div>
+            
+            {voiceSettings.enabled && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Label className="text-sm text-muted-foreground">Announce:</Label>
+                <Select
+                  value={voiceSettings.content}
+                  onValueChange={(value: VoiceContentType) =>
+                    setVoiceSettings(prev => ({ ...prev, content: value }))
+                  }
+                >
+                  <SelectTrigger className="w-[180px] h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Exercise name only</SelectItem>
+                    <SelectItem value="name-reps">Name + sets/reps</SelectItem>
+                    <SelectItem value="name-notes">Name + notes</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleVoicePreviewFirst}
+                  className="h-8"
+                >
+                  <Volume2 className="w-3 h-3 mr-1" />
+                  Preview
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Original Video Source - only show if it's a valid URL */}
+          {sourceUrl && (sourceUrl.startsWith('http://') || sourceUrl.startsWith('https://')) && (
+            <div className="flex items-center justify-between p-3 border rounded-lg">
+              <div className="flex items-center gap-2 overflow-hidden">
                 {isYouTubeSource && (
-                  <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded">
+                  <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded flex-shrink-0">
                     YouTube
                   </span>
                 )}
-                <span className="text-sm truncate max-w-[200px]">{sourceUrl}</span>
+                <span className="text-sm truncate max-w-[250px]" title={sourceUrl}>{sourceUrl}</span>
                 <a
                   href={sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary hover:underline"
+                  className="text-primary hover:underline flex-shrink-0"
                 >
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
               {isLoadingDuration ? (
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground flex-shrink-0" />
               ) : videoDuration ? (
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-muted-foreground flex-shrink-0">
                   {formatTime(videoDuration)}
                 </span>
               ) : null}
@@ -360,108 +500,135 @@ export function FollowAlongSetup({ workout, userId, sourceUrl }: FollowAlongSetu
           {showSteps && (
             <ScrollArea className="h-[350px] pr-4">
               <div className="space-y-3">
-                {stepConfigs.map((config, idx) => (
-                  <div
-                    key={config.exerciseId}
-                    className="p-3 border rounded-lg space-y-2"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium">
-                        {idx + 1}
-                      </div>
-                      <span className="font-medium text-sm flex-1">{config.exerciseName}</span>
-                      {config.videoSource !== 'none' && videoDuration && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          ~{formatTime(config.startTimeSec)}
-                        </span>
-                      )}
-                    </div>
+                {stepConfigs.map((config, idx) => {
+                  // Find the actual exercise for voice preview
+                  let exercise: Exercise | undefined;
+                  let exerciseIdx = 0;
+                  for (const block of workout.blocks) {
+                    for (const ex of block.exercises || []) {
+                      if (exerciseIdx === idx) {
+                        exercise = ex;
+                        break;
+                      }
+                      exerciseIdx++;
+                    }
+                    if (exercise) break;
+                  }
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Select
-                        value={config.videoSource}
-                        onValueChange={(value: VideoSourceType) =>
-                          updateStepConfig(config.exerciseId, { videoSource: value })
-                        }
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {sourceUrl && (
-                            <SelectItem value="original">
+                  return (
+                    <div
+                      key={config.exerciseId}
+                      className="p-3 border rounded-lg space-y-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium">
+                          {idx + 1}
+                        </div>
+                        <span className="font-medium text-sm flex-1">{config.exerciseName}</span>
+                        {voiceSettings.enabled && exercise && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleVoicePreview(exercise!)}
+                            className="h-6 w-6 p-0"
+                            title="Preview voice"
+                          >
+                            <Volume2 className="w-3 h-3" />
+                          </Button>
+                        )}
+                        {config.videoSource !== 'none' && videoDuration && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            ~{formatTime(config.startTimeSec)}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Select
+                          value={config.videoSource}
+                          onValueChange={(value: VideoSourceType) =>
+                            updateStepConfig(config.exerciseId, { videoSource: value })
+                          }
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sourceUrl && (
+                              <SelectItem value="original">
+                                <div className="flex items-center gap-2">
+                                  <Video className="w-3 h-3" />
+                                  {isYouTubeSource ? 'YouTube' : 'Original'}
+                                </div>
+                              </SelectItem>
+                            )}
+                            <SelectItem value="custom">
                               <div className="flex items-center gap-2">
-                                <Video className="w-3 h-3" />
-                                {isYouTubeSource ? 'YouTube' : 'Original'}
+                                <Link className="w-3 h-3" />
+                                Custom URL
                               </div>
                             </SelectItem>
-                          )}
-                          <SelectItem value="custom">
-                            <div className="flex items-center gap-2">
-                              <Link className="w-3 h-3" />
-                              Custom URL
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="none">
-                            <div className="flex items-center gap-2">
-                              <X className="w-3 h-3" />
-                              No Video
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                            <SelectItem value="none">
+                              <div className="flex items-center gap-2">
+                                <X className="w-3 h-3" />
+                                No Video
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
 
-                      {config.videoSource === 'original' && sourceUrl && (
-                        <>
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-muted-foreground" />
+                        {config.videoSource === 'original' && sourceUrl && (
+                          <>
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-muted-foreground" />
+                              <Input
+                                value={formatTime(config.startTimeSec)}
+                                onChange={(e) => {
+                                  const seconds = parseTime(e.target.value);
+                                  updateStepConfig(config.exerciseId, { startTimeSec: seconds });
+                                }}
+                                className="w-[70px] h-8 text-sm text-center"
+                                placeholder="0:00"
+                              />
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handlePreview(sourceUrl, config.startTimeSec)}
+                              className="h-8"
+                            >
+                              <Play className="w-3 h-3 mr-1" />
+                              Preview
+                            </Button>
+                          </>
+                        )}
+
+                        {config.videoSource === 'custom' && (
+                          <div className="flex-1 flex items-center gap-2">
                             <Input
-                              value={formatTime(config.startTimeSec)}
-                              onChange={(e) => {
-                                const seconds = parseTime(e.target.value);
-                                updateStepConfig(config.exerciseId, { startTimeSec: seconds });
-                              }}
-                              className="w-[70px] h-8 text-sm text-center"
-                              placeholder="0:00"
+                              placeholder="https://instagram.com/p/..."
+                              value={config.customUrl}
+                              onChange={(e) =>
+                                updateStepConfig(config.exerciseId, { customUrl: e.target.value })
+                              }
+                              className="text-sm h-8"
                             />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handlePreview(config.customUrl, 0)}
+                              disabled={!config.customUrl}
+                              className="h-8"
+                            >
+                              <Play className="w-3 h-3" />
+                            </Button>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handlePreview(sourceUrl, config.startTimeSec)}
-                            className="h-8"
-                          >
-                            <Play className="w-3 h-3 mr-1" />
-                            Preview
-                          </Button>
-                        </>
-                      )}
-
-                      {config.videoSource === 'custom' && (
-                        <div className="flex-1 flex items-center gap-2">
-                          <Input
-                            placeholder="https://instagram.com/p/..."
-                            value={config.customUrl}
-                            onChange={(e) =>
-                              updateStepConfig(config.exerciseId, { customUrl: e.target.value })
-                            }
-                            className="text-sm h-8"
-                          />
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handlePreview(config.customUrl, 0)}
-                            disabled={!config.customUrl}
-                            className="h-8"
-                          >
-                            <Play className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </ScrollArea>
           )}
