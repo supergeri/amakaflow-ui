@@ -46,6 +46,7 @@ import { saveWorkoutToAPI, SaveWorkoutRequest, SavedWorkout, getWorkoutFromAPI }
 import { useClerkUser } from '../lib/clerk-auth';
 import { WorkoutStructure } from '../types/workout';
 import { WorkoutSelector } from './WorkoutSelector';
+import { FollowAlongSetup } from './FollowAlongSetup';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { createStravaActivity, checkAndRefreshStravaToken, StravaTokenExpiredError, StravaUnauthorizedError } from '../lib/strava-api';
 import { formatWorkoutForStrava } from '../lib/workout-utils';
@@ -58,7 +59,7 @@ interface PublishExportProps {
   onStartNew?: () => void;
   selectedDevice?: DeviceId;
   userMode?: 'individual' | 'trainer';
-  workout?: WorkoutStructure; // Add workout data for saving
+  workout?: WorkoutStructure;
 }
 
 export function PublishExport({ exports, validation, sources, onStartNew, selectedDevice = 'garmin', userMode = 'individual', workout }: PublishExportProps) {
@@ -77,7 +78,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
   const [isAddingToStrava, setIsAddingToStrava] = useState(false);
   const [isDownloadingFit, setIsDownloadingFit] = useState(false);
   const stravaConnected = isAccountConnectedSync('strava');
-  // Check if user has Garmin USB FIT export enabled
   const selectedDevices = clerkUser?.selectedDevices || [];
   const hasGarminUsb = Array.isArray(selectedDevices) && selectedDevices.includes('garmin_usb');
   console.log('DEBUG PublishExport hasGarminUsb =', hasGarminUsb);
@@ -140,17 +140,12 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
   const handleSelectSavedWorkout = async (savedWorkout: SavedWorkout) => {
     setShowWorkoutSelector(false);
     
-    // Load the selected workout data
     try {
       const fullWorkout = await getWorkoutFromAPI(savedWorkout.id, profileId);
       if (fullWorkout) {
-        // Update the current workout with selected workout data
-        // This would need to be passed up to parent component
         toast.success('Workout loaded!', {
           description: 'You can now sync this workout to your device'
         });
-        // TODO: Emit event or callback to parent to load this workout
-        // For now, just show success message
       }
     } catch (error: any) {
       console.error('Failed to load selected workout:', error);
@@ -159,19 +154,15 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
   };
 
   const sendToDevice = async (platform: string) => {
-    // If workout hasn't been saved yet, save it first
     if (!savedWorkoutId && workout && profileId) {
       try {
         await handleSaveWorkout();
-        // Wait a moment for save to complete
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
         console.error('Failed to save workout before sync:', error);
-        // Continue with sync even if save fails
       }
     }
 
-    // Check if Garmin sync is enabled
     if (platform === 'Garmin' && import.meta.env.VITE_GARMIN_UNOFFICIAL_SYNC_ENABLED !== "true") {
       toast.error('Garmin Sync (Unofficial API) is disabled', {
         description: 'Enable GARMIN_UNOFFICIAL_SYNC_ENABLED for personal testing'
@@ -179,25 +170,21 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
       return;
     }
 
-    // For Garmin, use the mapper API endpoint that handles credentials
     if (platform === 'Garmin' && workout && profileId) {
       try {
         toast.info('Syncing to Garmin (Unofficial API)...', {
           description: 'Importing workout to Garmin Connect'
         });
 
-        // Use mapper-api endpoint that handles Garmin credentials
         const MAPPER_API_BASE_URL = import.meta.env.VITE_MAPPER_API_URL || 'http://localhost:8001';
         
-        // Call the mapper-api endpoint that syncs to Garmin
-        // This endpoint will use the garmin-sync-api with credentials from environment
         const syncResponse = await fetch(`${MAPPER_API_BASE_URL}/workout/sync/garmin`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             blocks_json: workout,
             workout_title: workout.title || 'Workout',
-            schedule_date: new Date().toISOString().split('T')[0] // Use today's date
+            schedule_date: new Date().toISOString().split('T')[0]
           }),
         });
 
@@ -224,24 +211,17 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
       return;
     }
 
-    // For other platforms, show placeholder message
     toast.success(`Syncing to ${platform}...`, {
       description: platform === 'Garmin' 
         ? 'Using Unofficial API to sync to Garmin Connect'
         : 'This feature is coming soon'
     });
-    
-    // TODO: Update export status after successful sync
-    // if (savedWorkoutId) {
-    //   await updateWorkoutExportStatus(savedWorkoutId, profileId, true, selectedDevice);
-    // }
   };
 
   const handleDownloadGarminUsbFit = async () => {
     try {
       setIsDownloadingFit(true);
 
-      // Use the workout prop which contains the canonical workout JSON
       const workoutJson = workout;
 
       if (!workoutJson) {
@@ -250,7 +230,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
         return;
       }
 
-      // Derive an id and title from existing data in this component
       const workoutId =
         (workout && (workout.id || (workout as any).workoutId)) ||
         (savedWorkoutId) ||
@@ -281,7 +260,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
 
       const blob = await res.blob();
 
-      // Try to get filename from Content-Disposition header
       const disposition = res.headers.get('content-disposition') || '';
       let filename = 'workout.fit';
       const match = disposition.match(/filename="?([^"]+)"?/);
@@ -315,7 +293,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
 
     setIsAddingToStrava(true);
     try {
-      // Check if Strava is connected
       const isConnected = await isAccountConnected(profileId, 'strava');
       if (!isConnected) {
         toast.error('Please connect your Strava account first via OAuth in Settings');
@@ -323,7 +300,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
         return;
       }
 
-      // Check and refresh token if needed
       const tokenValid = await checkAndRefreshStravaToken(profileId);
       if (!tokenValid) {
         const isStillConnected = await isAccountConnected(profileId, 'strava');
@@ -334,10 +310,8 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
         }
       }
 
-      // Format workout as description
       const description = formatWorkoutForStrava(workout);
       
-      // Calculate estimated duration (sum of all exercise durations + rest times)
       let estimatedDuration = 0;
       workout.blocks?.forEach(block => {
         block.exercises?.forEach(exercise => {
@@ -363,12 +337,10 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
         });
       });
       
-      // Default to 30 minutes if no duration can be calculated
       if (estimatedDuration === 0) {
-        estimatedDuration = 30 * 60; // 30 minutes in seconds
+        estimatedDuration = 30 * 60;
       }
 
-      // Create activity on Strava
       const activity = await createStravaActivity(profileId, {
         name: workout.title || 'Workout',
         activity_type: 'Workout',
@@ -384,13 +356,9 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
         },
       });
 
-      // Save workout if not already saved
       if (!savedWorkoutId) {
         await handleSaveWorkout();
       }
-
-      // TODO: Update workout history with Strava sync status
-      // This would require updating the workout in the database with strava_activity_id
       
     } catch (error: any) {
       console.error('Failed to add workout to Strava:', error);
@@ -410,13 +378,11 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
     }
   };
 
-  // Add scheduled date
   const addScheduledDate = () => {
     if (!selectedDate) return;
 
     const newDates: Date[] = [selectedDate];
 
-    // Handle recurring workouts
     if (recurringType === 'daily') {
       for (let i = 1; i < recurringCount; i++) {
         const nextDate = new Date(selectedDate);
@@ -439,14 +405,12 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
     toast.success(`Added ${newDates.length} workout${newDates.length > 1 ? 's' : ''} to calendar`);
   };
 
-  // Remove scheduled date
   const removeScheduledDate = (index: number) => {
     const newDates = scheduledDates.filter((_, i) => i !== index);
     setScheduledDates(newDates);
     toast.success('Removed scheduled workout');
   };
 
-  // Sync workouts with schedule
   const syncWithSchedule = () => {
     if (scheduledDates.length === 0) {
       toast.error('Please add at least one scheduled date');
@@ -458,7 +422,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
     });
   };
 
-  // Format date for display
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', { 
       weekday: 'short', 
@@ -468,10 +431,8 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
     });
   };
 
-  // Check if device supports scheduling
   const supportsScheduling = selectedDevice === 'garmin' || selectedDevice === 'apple';
 
-  // Get device-specific export data
   const getDeviceExport = () => {
     switch (selectedDevice) {
       case 'garmin':
@@ -502,12 +463,11 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
           deviceName: 'Zwift'
         };
       default:
-        // For all other devices, use a generic format
         return {
           title: `${selectedDevice.charAt(0).toUpperCase() + selectedDevice.slice(1)} Export`,
           description: `Workout export for ${selectedDevice}`,
           format: 'JSON',
-          content: exports.yaml, // Default to YAML content
+          content: exports.yaml,
           filename: `workout.${selectedDevice}.txt`,
           deviceName: selectedDevice.charAt(0).toUpperCase() + selectedDevice.slice(1)
         };
@@ -584,7 +544,7 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
         </Card>
       )}
 
-      {/* Add to Strava - Separate card */}
+      {/* Add to Strava */}
       {stravaConnected && workout && (
         <Card>
           <CardHeader>
@@ -619,6 +579,15 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
         </Card>
       )}
 
+      {/* Follow-Along Mode */}
+      {workout && profileId && (
+        <FollowAlongSetup
+          workout={workout}
+          userId={profileId}
+          sourceUrl={sources[0]}
+        />
+      )}
+
       {/* Export Formats */}
       <Card>
         <CardHeader>
@@ -633,7 +602,7 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Auto-enhance Strava toggle - Only show if Strava is connected */}
+          {/* Auto-enhance Strava toggle */}
           {stravaConnected && (
             <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
               <div className="flex-1">
@@ -694,16 +663,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
                   </>
                 )}
               </Button>
-            {hasGarminUsb && (
-              <Button
-                variant="secondary"
-                onClick={handleDownloadGarminUsbFit}
-                className="flex-1"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download FIT for Garmin (USB)
-              </Button>
-            )}
             </div>
           )}
 
@@ -750,12 +709,12 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
         </CardContent>
       </Card>
 
-      {/* Trainer Distribution - Only for trainers */}
+      {/* Trainer Distribution */}
       {userMode === 'trainer' && (
         <TrainerDistribution workoutTitle={sources[0]?.split(':')[1] || 'Workout'} />
       )}
 
-      {/* Workout Scheduling - Only for Garmin and Apple */}
+      {/* Workout Scheduling */}
       {supportsScheduling && (
         <Card>
           <CardHeader>
@@ -778,7 +737,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Date Selection */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Select Date</Label>
@@ -819,7 +777,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
               </div>
             </div>
 
-            {/* Recurring Count */}
             {recurringType !== 'none' && (
               <div className="space-y-2">
                 <Label>Number of occurrences</Label>
@@ -841,7 +798,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
               </div>
             )}
 
-            {/* Add Button */}
             <Button
               onClick={addScheduledDate}
               disabled={!selectedDate}
@@ -852,7 +808,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
               Add to Schedule
             </Button>
 
-            {/* Scheduled Dates List */}
             {scheduledDates.length > 0 && (
               <div className="space-y-2">
                 <Label>Scheduled Dates ({scheduledDates.length})</Label>
@@ -878,7 +833,6 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
                   </div>
                 </ScrollArea>
 
-                {/* Sync with Schedule Button */}
                 <Button
                   onClick={syncWithSchedule}
                   className="w-full"
