@@ -56,7 +56,7 @@ export function Calendar() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [eventDialogData, setEventDialogData] = useState<{ date?: string; startTime?: string; source?: WorkoutSource } | null>(null);
   const [showEventDrawer, setShowEventDrawer] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [showMiniCalendar, setShowMiniCalendar] = useState(true);
   const [activeFilters, setActiveFilters] = useState<string[]>(WORKOUT_FILTERS.map(f => f.id));
   const [searchQuery, setSearchQuery] = useState('');
