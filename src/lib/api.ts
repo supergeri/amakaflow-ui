@@ -330,6 +330,20 @@ export async function generateWorkoutStructure(
       break;
     }
 
+    if (source.type === 'tiktok') {
+      const resp = await apiCall<WorkoutStructure>(
+        '/ingest/tiktok',
+        {
+          method: 'POST',
+          body: JSON.stringify({ url: source.content }),
+        },
+        signal,
+      );
+
+      workout = resp;
+      break;
+    }
+
     if (source.type === 'image') {
       try {
         const imageResponse = await fetch(source.content);
