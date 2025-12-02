@@ -166,7 +166,7 @@ export interface MappingLookupResponse {
 }
 
 // Source Types (for UI)
-export type SourceType = 'instagram' | 'youtube' | 'image' | 'ai-text';
+export type SourceType = 'instagram' | 'youtube' | 'tiktok' | 'image' | 'ai-text';
 
 export interface Source {
   id: string;

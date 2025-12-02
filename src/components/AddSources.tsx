@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Youtube, Image, Sparkles, Plus, Trash2, Loader2, Upload, X, Eye, Sparkles as VisionIcon, XCircle, Copy, Check } from 'lucide-react';
+import { Youtube, Image, Sparkles, Plus, Trash2, Loader2, Upload, X, Eye, Sparkles as VisionIcon, XCircle, Copy, Check, Music2 } from 'lucide-react';
 import { Source, SourceType, WorkoutStructure } from '../types/workout';
 import { Textarea } from './ui/textarea';
 import { WorkoutTemplates } from './WorkoutTemplates';
@@ -214,6 +214,12 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
           setActiveTab('youtube');
           return;
         }
+        // Check if it's a TikTok URL
+        if (/tiktok\.com|vm\.tiktok\.com/i.test(currentInput.trim())) {
+          // TikTok URL detected - switch to TikTok tab
+          setActiveTab('tiktok');
+          return;
+        }
         // Use URL for image
         content = currentInput.trim();
         setCurrentInput('');
@@ -233,6 +239,14 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
       if (content && /youtube\.com|youtu\.be/i.test(content) && activeTab !== 'youtube') {
         // YouTube URL detected but wrong tab - switch to YouTube tab
         setActiveTab('youtube');
+        // Don't add source yet, let user confirm or re-add
+        return;
+      }
+      
+      // Auto-detect TikTok URLs and switch to TikTok tab if needed
+      if (content && /tiktok\.com|vm\.tiktok\.com/i.test(content) && activeTab !== 'tiktok') {
+        // TikTok URL detected but wrong tab - switch to TikTok tab
+        setActiveTab('tiktok');
         // Don't add source yet, let user confirm or re-add
         return;
       }
@@ -306,6 +320,7 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
   const getSourceIcon = (type: SourceType) => {
     switch (type) {
       case 'youtube': return <Youtube className="w-4 h-4" />;
+      case 'tiktok': return <Music2 className="w-4 h-4" />;
       case 'image': return <Image className="w-4 h-4" />;
       case 'ai-text': return <Sparkles className="w-4 h-4" />;
       default: return null;
@@ -318,7 +333,7 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
         <div>
           <h2 className="mb-2">Add Workout Sources</h2>
           <p className="text-muted-foreground">
-            Transform workout content from YouTube videos, images, or AI text into structured blocks that sync with your watches
+            Transform workout content from YouTube, TikTok, images, or AI text into structured blocks that sync with your watches
           </p>
         </div>
 
@@ -331,10 +346,14 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="youtube">
                   <Youtube className="w-4 h-4 mr-2" />
                   YouTube
+                </TabsTrigger>
+                <TabsTrigger value="tiktok">
+                  <Music2 className="w-4 h-4 mr-2" />
+                  TikTok
                 </TabsTrigger>
                 <TabsTrigger value="image">
                   <Image className="w-4 h-4 mr-2" />
@@ -390,6 +409,55 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
                     <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                     <AlertDescription className="text-xs text-blue-800 dark:text-blue-200">
                       <strong>Free Tier:</strong> 25 transcripts per month. See <span className="font-medium">Settings → General → YouTube Ingestion</span> for more info.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="tiktok" className="space-y-4">
+                {/* Show current processing method */}
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <Music2 className="w-4 h-4 text-pink-600" />
+                    <div>
+                      <p className="text-sm font-medium">
+                        Processing: Vision AI Exercise Detection
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        OpenAI GPT-4o-mini analyzes video frames
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="default" className="bg-pink-600">AI Vision</Badge>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>TikTok Video URL</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="https://www.tiktok.com/@username/video/..."
+                      value={currentInput}
+                      onChange={(e) => setCurrentInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && addSource()}
+                    />
+                    <Button onClick={addSource}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Step 1:</strong> Video downloaded and frames extracted
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Step 2:</strong> GPT-4o Vision analyzes frames to identify exercises shown
+                    </p>
+                  </div>
+
+                  <Alert className="bg-pink-50 dark:bg-pink-950 border-pink-200 dark:border-pink-800">
+                    <Info className="h-4 w-4 text-pink-600 dark:text-pink-400" />
+                    <AlertDescription className="text-xs text-pink-800 dark:text-pink-200">
+                      <strong>Supported:</strong> Public TikTok videos. Processing may take 20-30 seconds as video frames are analyzed.
                     </AlertDescription>
                   </Alert>
                 </div>
