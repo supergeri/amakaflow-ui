@@ -59,7 +59,7 @@ export function EventDrawer({ open, event, onEdit, onDelete, onClose }: EventDra
   return (
     <>
       <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-        <SheetContent className="sm:max-w-[440px] overflow-y-auto">
+        <SheetContent className="sm:max-w-[440px] overflow-y-auto z-[100]">
           <SheetHeader>
             <SheetTitle>{event.title}</SheetTitle>
             <SheetDescription>

@@ -634,6 +634,10 @@
     left: 50%;
   }
 
+  .z-10 {
+    z-index: 10;
+  }
+
   .z-30 {
     z-index: 30;
   }
@@ -644,10 +648,6 @@
 
   .z-50 {
     z-index: 50;
-  }
-
-  .z-\[60\] {
-    z-index: 60;
   }
 
   .z-\[70\] {
@@ -726,10 +726,6 @@
 
   .my-1 {
     margin-block: calc(var(--spacing) * 1);
-  }
-
-  .-mt-2 {
-    margin-top: calc(var(--spacing) * -2);
   }
 
   .mt-0\.5 {
@@ -1008,10 +1004,6 @@
 
   .h-px {
     height: 1px;
-  }
-
-  .h-screen {
-    height: 100vh;
   }
 
   .max-h-\(--radix-dropdown-menu-content-available-height\) {
@@ -1639,10 +1631,6 @@
 
   .border-gray-300 {
     border-color: var(--color-gray-300);
-  }
-
-  .border-gray-900 {
-    border-color: var(--color-gray-900);
   }
 
   .border-green-300 {
@@ -2486,6 +2474,10 @@
     text-underline-offset: 4px;
   }
 
+  .opacity-0 {
+    opacity: 0;
+  }
+
   .opacity-20 {
     opacity: .2;
   }
@@ -2691,6 +2683,12 @@
 
   .slide-in-from-right {
     --tw-enter-translate-x: 100%;
+  }
+
+  @media (hover: hover) {
+    .group-hover\:opacity-100:is(:where(.group):hover *) {
+      opacity: 1;
+    }
   }
 
   .group-data-\[disabled\=true\]\:pointer-events-none:is(:where(.group)[data-disabled="true"] *) {
