@@ -414,14 +414,14 @@ export function SmartPlannerDrawer({
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/20 z-40 animate-in fade-in duration-200"
+        className="fixed inset-0 bg-black/20 z-[90] animate-in fade-in duration-200"
         onClick={onClose}
       />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-screen w-[400px] bg-background border-l shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300 ease-out">
+      <div className="fixed right-0 top-0 bottom-0 w-[400px] bg-background border-l shadow-2xl z-[100] flex flex-col animate-in slide-in-from-right duration-300 ease-out">
         {/* Header (Fixed) */}
-        <div className="flex-shrink-0 p-6 border-b space-y-1">
+        <div className="flex-shrink-0 p-6 border-b space-y-1 bg-background z-10">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <h2 className="text-xl font-semibold">Smart Planner</h2>
@@ -527,7 +527,7 @@ export function SmartPlannerDrawer({
 
         {/* Footer Actions (Fixed) */}
         {state === 'idle' && (
-          <div className="flex-shrink-0 py-4 px-6 border-t flex items-center gap-3 bg-background">
+          <div className="flex-shrink-0 py-4 px-6 pb-6 border-t flex items-center gap-3 bg-background">
             <Button 
               variant="ghost" 
               onClick={onClose}

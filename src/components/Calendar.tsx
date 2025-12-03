@@ -83,7 +83,7 @@ export function Calendar() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [eventDialogData, setEventDialogData] = useState<{ date?: string; startTime?: string; source?: WorkoutSource } | null>(null);
   const [showEventDrawer, setShowEventDrawer] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // Start collapsed to show full week view
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // Show mini calendar by default
   const [showMiniCalendar, setShowMiniCalendar] = useState(true);
   const [activeFilters, setActiveFilters] = useState<string[]>(WORKOUT_FILTERS.map(f => f.id));
   const [showYearPicker, setShowYearPicker] = useState(false);
@@ -444,7 +444,7 @@ export function Calendar() {
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-background">
       {/* Sidebar */}
-      <div className={`border-r border-gray-900 bg-[#f8f9fa] flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'}`}>
+      <div className={`border-r border-border bg-[#f8f9fa] flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'}`}>
         {!sidebarCollapsed && (
           <>
             {/* Mini Calendar */}
@@ -574,7 +574,7 @@ export function Calendar() {
       {/* Main Calendar View */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="border-b bg-card p-4 flex items-center justify-between sticky top-0 z-[60]">
+        <div className="border-b bg-card p-4 flex items-center justify-between sticky top-0 z-40 flex-shrink-0">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -707,6 +707,7 @@ export function Calendar() {
               events={events}
               onEventClick={handleEventClick}
               onDateClick={handleDateSelect}
+              onCreateEvent={handleCreateEvent}
             />
           )}
           {viewMode === 'list' && (
@@ -767,12 +768,14 @@ function MonthView({
   currentDate, 
   events, 
   onEventClick,
-  onDateClick 
+  onDateClick,
+  onCreateEvent
 }: { 
   currentDate: Date;
   events: CalendarEvent[];
   onEventClick: (event: CalendarEvent) => void;
   onDateClick: (date: Date) => void;
+  onCreateEvent: (data?: { date?: string; startTime?: string }) => void;
 }) {
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -808,15 +811,33 @@ function MonthView({
           return (
             <div
               key={idx}
-              onClick={() => onDateClick(day)}
-              className={`border-r border-b last:border-r-0 p-2 cursor-pointer hover:bg-accent transition-colors min-h-[100px] ${
+              className={`border-r border-b last:border-r-0 p-2 cursor-pointer hover:bg-accent transition-colors min-h-[100px] relative group ${ 
                 !isCurrentMonth ? 'bg-muted/30' : ''
               }`}
             >
               <div className={`text-sm mb-1 ${isToday ? 'bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center' : ''}`}>
                 {format(day, 'd')}
               </div>
-              <div className="space-y-1">
+              
+              {/* Add Event Button - appears on hover */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateEvent({ date: format(day, 'yyyy-MM-dd') });
+                }}
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-primary text-primary-foreground rounded-full p-1 hover:bg-primary/90"
+                title="Add workout"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+
+              <div className="space-y-1"
+                onClick={(e) => {
+                  // Allow clicking on empty space to create event
+                  if ((e.target as HTMLElement).closest('.event-card')) return;
+                  onDateClick(day);
+                }}
+              >
                 {dayEvents.slice(0, 3).map(event => (
                   <div
                     key={event.id}

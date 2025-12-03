@@ -138,10 +138,10 @@ export function WeekView({
             {hours.map((hour) => (
               <div
                 key={hour}
-                className="flex items-start justify-end pr-2 border-b"
+                className="flex items-start justify-end pr-2 pt-1 border-b"
                 style={{ height: `${HOUR_HEIGHT}px` }}
               >
-                <span className="text-xs text-muted-foreground -mt-2 tabular-nums">
+                <span className="text-xs text-muted-foreground tabular-nums leading-none">
                   {String(hour).padStart(2, '0')}:00
                 </span>
               </div>
