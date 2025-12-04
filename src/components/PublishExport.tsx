@@ -1,3 +1,4 @@
+import { FitPreviewModal } from "./FitPreviewModal";
 import { TrainerDistribution } from './TrainerDistribution';
 import { Switch } from './ui/switch';
 import { useState } from 'react';
@@ -5,7 +6,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { 
-  Download, 
+  Download,
   Copy, 
   Check, 
   Send, 
@@ -677,6 +678,9 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
               )}
               Copy {deviceExport.format}
             </Button>
+            {workout && (
+              <FitPreviewModal workout={workout} />
+            )}
             <Button
               variant="outline"
               onClick={handleDownloadGarminUsbFit}
