@@ -86,10 +86,11 @@ export function Calendar({ userId }: CalendarProps) {
     enabled: !!userId,
   });
 
-  const { 
+  const {
     calendars: connectedCalendars,
     createCalendar,
-    deleteCalendar 
+    deleteCalendar,
+    syncCalendar
   } = useConnectedCalendars({ userId });
 
   // Build dynamic workout filters from base filters + connected calendars
@@ -395,7 +396,19 @@ export function Calendar({ userId }: CalendarProps) {
       <EventDialogEnhanced open={showEventDialog} event={selectedEvent} defaultData={eventDialogData} onSave={handleSaveEvent} onClose={() => { setShowEventDialog(false); setSelectedEvent(null); setEventDialogData(null); }} />
       <EventDrawer open={showEventDrawer} event={selectedEvent} onEdit={handleEditEvent} onDelete={handleDeleteEvent} onClose={() => { setShowEventDrawer(false); setSelectedEvent(null); }} />
       <SmartPlannerDrawer open={showSmartPlanner} onClose={() => setShowSmartPlanner(false)} weekStart={weekStart} weekEnd={weekEnd} calendarEvents={typedEvents} onSaveWorkouts={handleSaveSmartPlannerWorkouts} userId={userId} />
-      <ConnectedCalendarsModal open={showConnectedCalendars} onClose={() => setShowConnectedCalendars(false)} />
+      <ConnectedCalendarsModal
+        open={showConnectedCalendars}
+        onClose={() => setShowConnectedCalendars(false)}
+        calendars={connectedCalendars || []}
+        onCreateCalendar={createCalendar}
+        onDeleteCalendar={deleteCalendar}
+        onSyncCalendar={async (calendarId: string) => {
+          const result = await syncCalendar(calendarId);
+          // Refetch events to show newly synced workouts
+          await fetchEvents();
+          return result;
+        }}
+      />
     </div>
   );
 }

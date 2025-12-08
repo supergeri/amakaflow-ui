@@ -122,6 +122,12 @@ interface UseConnectedCalendarsResult {
   refetch: () => Promise<void>;
   createCalendar: (calendar: CreateConnectedCalendar) => Promise<ConnectedCalendar>;
   deleteCalendar: (calendarId: string) => Promise<void>;
+  syncCalendar: (calendarId: string) => Promise<{
+    success: boolean;
+    events_created: number;
+    events_updated: number;
+    total_events: number;
+  }>;
 }
 
 export function useConnectedCalendars({ userId }: UseConnectedCalendarsOptions): UseConnectedCalendarsResult {
@@ -172,6 +178,20 @@ export function useConnectedCalendars({ userId }: UseConnectedCalendarsOptions):
     setCalendars(prev => prev.filter(c => c.id !== calendarId));
   }, []);
 
+  // Sync calendar
+  const syncCalendar = useCallback(async (calendarId: string) => {
+    const result = await calendarApi.syncConnectedCalendar(calendarId);
+
+    // Update the calendar's last_sync and sync_status
+    setCalendars(prev => prev.map(c =>
+      c.id === calendarId
+        ? { ...c, last_sync: new Date().toISOString(), sync_status: 'active' as const }
+        : c
+    ));
+
+    return result;
+  }, []);
+
   return {
     calendars,
     isLoading,
@@ -179,5 +199,6 @@ export function useConnectedCalendars({ userId }: UseConnectedCalendarsOptions):
     refetch: fetchCalendars,
     createCalendar,
     deleteCalendar,
+    syncCalendar,
   };
 }

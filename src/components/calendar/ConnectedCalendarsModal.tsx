@@ -7,35 +7,48 @@ import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Switch } from '../ui/switch';
 import { ScrollArea } from '../ui/scroll-area';
-import { 
-  Calendar, 
-  Link2, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  Calendar,
+  Link2,
+  CheckCircle2,
+  XCircle,
   Clock,
   Plus,
   Settings,
-  ExternalLink
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react';
 import { ConnectedCalendar } from '../../types/calendar';
-import { mockConnectedCalendars } from '../../lib/calendar-mock-data';
+import { toast } from 'sonner';
 
 interface ConnectedCalendarsModalProps {
   open: boolean;
   onClose: () => void;
   onSelectCalendar?: (calendar: ConnectedCalendar) => void;
+  calendars: ConnectedCalendar[];
+  onCreateCalendar: (calendar: { name: string; type: string; integration_type: string; is_workout_calendar: boolean; ics_url: string; color?: string }) => Promise<any>;
+  onDeleteCalendar: (calendarId: string) => Promise<void>;
+  onSyncCalendar: (calendarId: string) => Promise<any>;
 }
 
 type AddFlowType = 'runna' | 'ics_custom' | 'apple' | 'google' | 'outlook' | null;
 
-export function ConnectedCalendarsModal({ open, onClose, onSelectCalendar }: ConnectedCalendarsModalProps) {
-  const [connectedCalendars] = useState<ConnectedCalendar[]>(mockConnectedCalendars);
+export function ConnectedCalendarsModal({
+  open,
+  onClose,
+  onSelectCalendar,
+  calendars,
+  onCreateCalendar,
+  onDeleteCalendar,
+  onSyncCalendar
+}: ConnectedCalendarsModalProps) {
   const [showAddFlow, setShowAddFlow] = useState<AddFlowType>(null);
   const [icsFormData, setIcsFormData] = useState({
     name: '',
     icsUrl: '',
     isWorkoutCalendar: true
   });
+  const [isSyncing, setIsSyncing] = useState<string | null>(null);
 
   const handleViewEvents = (calendar: ConnectedCalendar) => {
     if (onSelectCalendar) {
@@ -61,16 +74,42 @@ export function ConnectedCalendarsModal({ open, onClose, onSelectCalendar }: Con
     }
   };
 
-  const handleConnectIcs = () => {
-    console.log('Connecting ICS calendar:', icsFormData);
-    // TODO: Implement actual connection logic
-    setShowAddFlow(null);
-    setIcsFormData({ name: '', icsUrl: '', isWorkoutCalendar: true });
+  const handleConnectIcs = async () => {
+    try {
+      const calendarType = showAddFlow === 'runna' ? 'runna' : 'ics_custom';
+      await onCreateCalendar({
+        name: icsFormData.name,
+        type: calendarType,
+        integration_type: 'ics_url',
+        is_workout_calendar: icsFormData.isWorkoutCalendar,
+        ics_url: icsFormData.icsUrl,
+        color: calendarType === 'runna' ? '#FF6B6B' : undefined
+      });
+      toast.success('Calendar connected successfully');
+      setShowAddFlow(null);
+      setIcsFormData({ name: '', icsUrl: '', isWorkoutCalendar: true });
+    } catch (error) {
+      console.error('Error connecting calendar:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to connect calendar');
+    }
+  };
+
+  const handleSyncCalendar = async (calendarId: string) => {
+    try {
+      setIsSyncing(calendarId);
+      const result = await onSyncCalendar(calendarId);
+      toast.success(`Synced ${result.events_created} new events, updated ${result.events_updated}`);
+    } catch (error) {
+      console.error('Error syncing calendar:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to sync calendar');
+    } finally {
+      setIsSyncing(null);
+    }
   };
 
   const handleOAuthConnect = (provider: 'google' | 'outlook' | 'apple') => {
     console.log('Initiating OAuth flow for:', provider);
-    // TODO: Implement OAuth flow
+    toast.info('OAuth integration coming soon!');
     setShowAddFlow(null);
   };
 
@@ -121,10 +160,10 @@ export function ConnectedCalendarsModal({ open, onClose, onSelectCalendar }: Con
         <ScrollArea className="max-h-[60vh]">
           <div className="space-y-6 py-4 pr-4">
             {/* Section A - Your Calendars */}
-            {connectedCalendars.length > 0 ? (
+            {calendars.length > 0 ? (
               <div className="space-y-3">
                 <h3 className="text-sm font-medium">Your Calendars</h3>
-                {connectedCalendars.map((calendar) => (
+                {calendars.map((calendar) => (
                   <Card key={calendar.id} className="p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 flex-1">
@@ -158,19 +197,22 @@ export function ConnectedCalendarsModal({ open, onClose, onSelectCalendar }: Con
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
-                        <Button 
-                          size="sm" 
-                          onClick={() => handleViewEvents(calendar)}
+                        <Button
+                          size="sm"
+                          onClick={() => handleSyncCalendar(calendar.id)}
+                          disabled={isSyncing === calendar.id || !calendar.ics_url}
+                          className="gap-1"
                         >
-                          View Events
+                          <RefreshCw className={`w-3 h-3 ${isSyncing === calendar.id ? 'animate-spin' : ''}`} />
+                          {isSyncing === calendar.id ? 'Syncing...' : 'Sync'}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           className="text-xs h-7 gap-1"
+                          onClick={() => handleViewEvents(calendar)}
                         >
-                          <Settings className="w-3 h-3" />
-                          Configure
+                          View Events
                         </Button>
                       </div>
                     </div>

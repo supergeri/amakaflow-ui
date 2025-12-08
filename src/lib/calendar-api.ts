@@ -200,6 +200,27 @@ class CalendarApiClient {
       throw new Error(error.detail || `API error: ${response.status}`);
     }
   }
+
+  async syncConnectedCalendar(calendarId: string): Promise<{
+    success: boolean;
+    events_created: number;
+    events_updated: number;
+    total_events: number;
+  }> {
+    const response = await fetch(
+      `${this.baseUrl}/calendar/connected-calendars/${calendarId}/sync`,
+      {
+        method: 'POST',
+        headers: this.getHeaders(),
+      }
+    );
+    return this.handleResponse<{
+      success: boolean;
+      events_created: number;
+      events_updated: number;
+      total_events: number;
+    }>(response);
+  }
 }
 
 // Export singleton instance

@@ -100,12 +100,12 @@ export function WeekView({
         <div className="w-16 flex-shrink-0 h-16 flex items-center justify-center border-r bg-background">
           <span className="text-xs text-muted-foreground uppercase">Time</span>
         </div>
-        
+
         {/* Day headers */}
         {days.map((day) => {
           const isToday = isSameDay(day, today);
           const isSelected = isSameDay(day, selectedDate);
-          
+
           return (
             <div
               key={day.toISOString()}
@@ -125,6 +125,50 @@ export function WeekView({
                   </span>
                 )}
               </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* All-Day Events Row */}
+      <div className="flex border-b flex-shrink-0 bg-muted/30">
+        {/* Label */}
+        <div className="w-16 flex-shrink-0 flex items-start justify-end pr-2 pt-2 border-r">
+          <span className="text-xs text-muted-foreground leading-none">All day</span>
+        </div>
+
+        {/* Day columns for all-day events */}
+        {days.map((day) => {
+          const dateKey = format(day, 'yyyy-MM-dd');
+          const dayEvents = eventsByDay[dateKey] || [];
+          const allDayEvents = dayEvents.filter(e => !e.start_time);
+          const isSelected = isSameDay(day, selectedDate);
+
+          return (
+            <div
+              key={`all-day-${dateKey}`}
+              className={`flex-1 border-l p-1 space-y-1 min-h-[60px] ${isSelected ? 'bg-primary/5' : ''}`}
+            >
+              {allDayEvents.map((event) => {
+                const colors = typeColors[event.type] || typeColors.recovery;
+
+                return (
+                  <div
+                    key={event.id}
+                    className={`
+                      px-2 py-1 rounded-md border-l-2 cursor-pointer hover:shadow-sm transition-shadow text-xs
+                      ${colors.bg} ${colors.border} ${colors.text}
+                    `}
+                    onClick={() => onEventClick(event)}
+                    title={event.title}
+                  >
+                    <div className="flex items-center gap-1">
+                      {event.is_anchor && <Lock className="w-3 h-3 flex-shrink-0" />}
+                      <span className="font-medium truncate">{event.title}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           );
         })}

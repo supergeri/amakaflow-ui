@@ -1,16 +1,16 @@
-import { 
-  Sheet, 
-  SheetContent, 
+import {
+  Sheet,
+  SheetContent,
   SheetDescription,
-  SheetHeader, 
-  SheetTitle 
+  SheetHeader,
+  SheetTitle
 } from '../ui/sheet';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
 import { CalendarEvent } from '../../types/calendar';
 import { format, parseISO } from 'date-fns';
-import { Clock, Calendar, Tag, Activity, AlertCircle, Edit, Trash } from 'lucide-react';
+import { Clock, Calendar, Tag, Activity, AlertCircle, Edit, Trash, MapPin, ExternalLink, Route, Timer } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +39,16 @@ export function EventDrawer({ open, event, onEdit, onDelete, onClose }: EventDra
   const handleDelete = () => {
     onDelete(event.id);
     setShowDeleteDialog(false);
+  };
+
+  // Format duration from seconds to readable string
+  const formatDuration = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes} min`;
   };
 
   const typeColors = {
@@ -151,6 +161,59 @@ export function EventDrawer({ open, event, onEdit, onDelete, onClose }: EventDra
                 </div>
               </div>
             </Card>
+
+            {/* Workout Details from ICS */}
+            {(event.json_payload?.description || event.json_payload?.distance_mi || event.json_payload?.estimated_duration || event.json_payload?.location || event.external_event_url) && (
+              <Card className="p-4 space-y-3">
+                <div className="text-sm font-medium mb-3">Workout Details</div>
+
+                {event.json_payload?.description && (
+                  <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {event.json_payload.description}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {event.json_payload?.distance_mi && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Route className="w-4 h-4 text-muted-foreground" />
+                      <span className="font-medium">Distance:</span>
+                      <span className="text-muted-foreground">{event.json_payload.distance_mi} miles</span>
+                    </div>
+                  )}
+
+                  {event.json_payload?.estimated_duration && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Timer className="w-4 h-4 text-muted-foreground" />
+                      <span className="font-medium">Estimated Duration:</span>
+                      <span className="text-muted-foreground">{formatDuration(event.json_payload.estimated_duration)}</span>
+                    </div>
+                  )}
+
+                  {event.json_payload?.location && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <span className="font-medium">Location:</span>
+                      <span className="text-muted-foreground">{event.json_payload.location}</span>
+                    </div>
+                  )}
+
+                  {event.external_event_url && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                      <a
+                        href={event.external_event_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        View in Runna
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
 
             {/* Notes */}
             {event.json_payload?.notes && (
