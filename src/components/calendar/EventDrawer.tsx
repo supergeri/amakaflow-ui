@@ -162,6 +162,36 @@ export function EventDrawer({ open, event, onEdit, onDelete, onClose }: EventDra
               </div>
             </Card>
 
+            {/* Gym Event Details */}
+            {event.source === 'gym_manual_sync' && (event.json_payload?.gym_name || event.json_payload?.trainer_name) && (
+              <Card className="p-4 space-y-3">
+                <div className="text-sm font-medium mb-3">Gym Session Details</div>
+
+                <div className="space-y-2">
+                  {event.json_payload?.gym_name && (
+                    <div className="flex items-start gap-2 text-sm">
+                      <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                      <div className="flex-1">
+                        <span className="font-medium">Location:</span>
+                        <div className="text-muted-foreground">{event.json_payload.gym_name}</div>
+                        {event.json_payload?.gym_address && (
+                          <div className="text-xs text-muted-foreground mt-0.5">{event.json_payload.gym_address}</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {event.json_payload?.trainer_name && event.json_payload.trainer_name !== 'No Trainer' && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Activity className="w-4 h-4 text-muted-foreground" />
+                      <span className="font-medium">Trainer:</span>
+                      <span className="text-muted-foreground">{event.json_payload.trainer_name}</span>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+
             {/* Workout Details from ICS */}
             {(event.json_payload?.description || event.json_payload?.distance_mi || event.json_payload?.estimated_duration || event.json_payload?.location || event.external_event_url) && (
               <Card className="p-4 space-y-3">

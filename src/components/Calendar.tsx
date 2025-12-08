@@ -33,6 +33,7 @@ import { EventDialogEnhanced } from './calendar/EventDialogEnhanced';
 import { EventDrawer } from './calendar/EventDrawer';
 import { SmartPlannerDrawer } from './calendar/SmartPlannerDrawer';
 import { ConnectedCalendarsModal } from './calendar/ConnectedCalendarsModal';
+import { GymEventModal } from './calendar/GymEventModal';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isSameDay, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { useCalendarEvents, useConnectedCalendars } from '../hooks/useCalendarApi';
 import { toast } from 'sonner';
@@ -65,6 +66,7 @@ export function Calendar({ userId }: CalendarProps) {
   const [showSmartPlanner, setShowSmartPlanner] = useState(false);
   const [newDropdownOpen, setNewDropdownOpen] = useState(false);
   const [showConnectedCalendars, setShowConnectedCalendars] = useState(false);
+  const [showGymEventModal, setShowGymEventModal] = useState(false);
 
   // Calculate week range
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
@@ -174,12 +176,14 @@ export function Calendar({ userId }: CalendarProps) {
           is_anchor: eventData.is_anchor || false,
           primary_muscle: eventData.primary_muscle,
           intensity: eventData.intensity,
+          recurrence_rule: eventData.recurrence_rule,
           json_payload: eventData.json_payload,
         });
         toast.success('Event created successfully');
       }
-      
+
       setShowEventDialog(false);
+      setShowGymEventModal(false);
       setSelectedEvent(null);
       setEventDialogData(null);
     } catch (error) {
@@ -369,8 +373,8 @@ export function Calendar({ userId }: CalendarProps) {
                 <DropdownMenuItem onClick={() => { setEventDialogData({ date: format(selectedDate, 'yyyy-MM-dd') }); setShowEventDialog(true); setNewDropdownOpen(false); }}>
                   <Plus className="w-4 h-4 mr-2" />Create Manual Event
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setEventDialogData({ date: format(selectedDate, 'yyyy-MM-dd'), source: 'gym_manual_sync' }); setShowEventDialog(true); setNewDropdownOpen(false); }}>
-                  <Dumbbell className="w-4 h-4 mr-2" />Add from Gym
+                <DropdownMenuItem onClick={() => { setEventDialogData({ date: format(selectedDate, 'yyyy-MM-dd') }); setShowGymEventModal(true); setNewDropdownOpen(false); }}>
+                  <Dumbbell className="w-4 h-4 mr-2" />Add Gym Event (Manual)
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => { setShowConnectedCalendars(true); setNewDropdownOpen(false); }}>
                   <CalendarIcon className="w-4 h-4 mr-2" />Add from Connected Calendar…
@@ -396,6 +400,13 @@ export function Calendar({ userId }: CalendarProps) {
       <EventDialogEnhanced open={showEventDialog} event={selectedEvent} defaultData={eventDialogData} onSave={handleSaveEvent} onClose={() => { setShowEventDialog(false); setSelectedEvent(null); setEventDialogData(null); }} />
       <EventDrawer open={showEventDrawer} event={selectedEvent} onEdit={handleEditEvent} onDelete={handleDeleteEvent} onClose={() => { setShowEventDrawer(false); setSelectedEvent(null); }} />
       <SmartPlannerDrawer open={showSmartPlanner} onClose={() => setShowSmartPlanner(false)} weekStart={weekStart} weekEnd={weekEnd} calendarEvents={typedEvents} onSaveWorkouts={handleSaveSmartPlannerWorkouts} userId={userId} />
+      <GymEventModal
+        open={showGymEventModal}
+        event={selectedEvent}
+        defaultData={eventDialogData}
+        onSave={handleSaveEvent}
+        onClose={() => { setShowGymEventModal(false); setSelectedEvent(null); setEventDialogData(null); }}
+      />
       <ConnectedCalendarsModal
         open={showConnectedCalendars}
         onClose={() => setShowConnectedCalendars(false)}
