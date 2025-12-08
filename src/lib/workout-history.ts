@@ -76,6 +76,15 @@ function saveWorkoutToHistoryLocal(data: {
 }
 
 /**
+ * Check if a string is a valid UUID format.
+ * Database workouts have UUIDs, localStorage-only workouts have custom IDs like "workout_123456_abc".
+ */
+function isValidUUID(id: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
+/**
  * Build a stable key used to detect duplicates between API + localStorage.
  * Uses title + device (without timestamp) for more stable deduplication.
  * Timestamps can vary between saves, causing duplicates to not be detected.
@@ -260,20 +269,25 @@ export function getWorkoutHistoryFromLocalStorage(): WorkoutHistoryItem[] {
 }
 
 /**
- * Delete a workout from both API (if profileId provided) and localStorage.
+ * Delete a workout from both API (if profileId provided and ID is UUID) and localStorage.
+ * LocalStorage-only workouts have non-UUID IDs like "workout_123456_abc" and don't exist in the database.
  */
 export async function deleteWorkoutFromHistory(
   id: string,
   profileId?: string
 ): Promise<boolean> {
   try {
-    if (profileId) {
+    // Only call API if profileId is provided AND the ID is a valid UUID
+    // Non-UUID IDs are localStorage-only workouts that don't exist in the database
+    if (profileId && isValidUUID(id)) {
       const { deleteWorkoutFromAPI } = await import('./workout-api');
       const ok = await deleteWorkoutFromAPI(id, profileId);
       if (!ok) {
         console.error('[deleteWorkoutFromHistory] API delete failed for id:', id);
         return false;
       }
+    } else if (profileId && !isValidUUID(id)) {
+      console.log('[deleteWorkoutFromHistory] Skipping API call for non-UUID id (localStorage only):', id);
     }
 
     // Delete from localStorage by ID only (not by dedup key)
