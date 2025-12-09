@@ -37,9 +37,10 @@ interface VideoIngestDialogProps {
   onOpenChange: (open: boolean) => void;
   userId: string;
   onWorkoutCreated: (workout: FollowAlongWorkout) => void;
+  initialUrl?: string;
 }
 
-export function VideoIngestDialog({ open, onOpenChange, userId, onWorkoutCreated }: VideoIngestDialogProps) {
+export function VideoIngestDialog({ open, onOpenChange, userId, onWorkoutCreated, initialUrl }: VideoIngestDialogProps) {
   const [step, setStep] = useState<IngestStep>('url');
   const [videoUrl, setVideoUrl] = useState('');
   const [platform, setPlatform] = useState<VideoPlatform | null>(null);
@@ -76,6 +77,13 @@ export function VideoIngestDialog({ open, onOpenChange, userId, onWorkoutCreated
       setError(null);
     }
   }, [open]);
+
+  // Set initial URL when dialog opens with one
+  useEffect(() => {
+    if (open && initialUrl && videoUrl === '') {
+      setVideoUrl(initialUrl);
+    }
+  }, [open, initialUrl]);
 
   // Exercise search
   useEffect(() => {

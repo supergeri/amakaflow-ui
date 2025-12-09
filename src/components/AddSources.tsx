@@ -13,6 +13,10 @@ import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
 import { Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
+import { VideoIngestDialog } from './VideoIngestDialog';
+import { useUser } from '@clerk/clerk-react';
+import type { FollowAlongWorkout } from '../types/follow-along';
+import { toast } from 'sonner';
 
 // Helper to detect video platform from URL
 type VideoPlatform = 'youtube' | 'tiktok' | 'instagram' | 'unknown';
@@ -340,6 +344,7 @@ Always follow the exact format above. No exceptions.`;
 }
 
 export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, progress, onCancel }: AddSourcesProps) {
+  const { user } = useUser();
   const [sources, setSources] = useState<Source[]>([]);
   const [currentInput, setCurrentInput] = useState('');
   const [activeTab, setActiveTab] = useState<string>('video');
@@ -347,6 +352,10 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [imageMethod, setImageMethod] = useState<'ocr' | 'vision'>(getImageProcessingMethod());
+
+  // VideoIngestDialog state for Instagram URLs
+  const [showVideoIngestDialog, setShowVideoIngestDialog] = useState(false);
+  const [pendingInstagramUrl, setPendingInstagramUrl] = useState<string | null>(null);
 
   // Listen for preference changes
   useEffect(() => {
@@ -372,8 +381,17 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
         // Not a recognized video URL
         return;
       }
+
+      // Instagram requires manual entry - open VideoIngestDialog
+      if (platform === 'instagram') {
+        setPendingInstagramUrl(currentInput.trim());
+        setShowVideoIngestDialog(true);
+        setCurrentInput('');
+        return;
+      }
+
       content = currentInput.trim();
-      sourceType = platform === 'instagram' ? 'youtube' : platform; // Map instagram to youtube for now (will be handled by backend)
+      sourceType = platform;
       setCurrentInput('');
     } else if (activeTab === 'image') {
       if (currentInput.trim()) {
@@ -419,6 +437,15 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
     setCurrentInput('');
     setUploadedImage(null);
     setImagePreview(null);
+  };
+
+  // Handle Instagram workout created from VideoIngestDialog
+  const handleInstagramWorkoutCreated = (workout: FollowAlongWorkout) => {
+    toast.success('Instagram workout created!', {
+      description: `"${workout.name}" has been saved to your Follow-Along Workouts.`,
+    });
+    setShowVideoIngestDialog(false);
+    setPendingInstagramUrl(null);
   };
 
   const handleImageUpload = (file: File) => {
@@ -800,6 +827,20 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
           onSelectHistory={onLoadTemplate}
         />
       </div>
+
+      {/* VideoIngestDialog for Instagram URLs */}
+      {user && (
+        <VideoIngestDialog
+          open={showVideoIngestDialog}
+          onOpenChange={(open) => {
+            setShowVideoIngestDialog(open);
+            if (!open) setPendingInstagramUrl(null);
+          }}
+          userId={user.id}
+          onWorkoutCreated={handleInstagramWorkoutCreated}
+          initialUrl={pendingInstagramUrl || undefined}
+        />
+      )}
     </div>
   );
 }
