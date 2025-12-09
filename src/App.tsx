@@ -18,6 +18,7 @@ import { WelcomeGuide } from './components/WelcomeGuide';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { FollowAlongWorkouts } from './components/FollowAlongWorkouts';
 import { Calendar } from './components/Calendar';
+import { UnifiedWorkouts } from './components/UnifiedWorkouts';
 import BuildBadge from './components/BuildBadge';
 import { DevSystemStatus } from './components/DevSystemStatus';
 import { WorkoutStructure, ExportFormats, ValidationResponse } from './types/workout';
@@ -41,7 +42,7 @@ type AppUser = User & {
 };
 
 type WorkflowStep = 'add-sources' | 'structure' | 'validate' | 'export';
-type View = 'home' | 'workflow' | 'profile' | 'history' | 'analytics' | 'team' | 'settings' | 'strava-enhance' | 'follow-along' | 'calendar';
+type View = 'home' | 'workflow' | 'profile' | 'history' | 'analytics' | 'team' | 'settings' | 'strava-enhance' | 'follow-along' | 'calendar' | 'workouts';
 
 export default function App() {
   // Clerk authentication
@@ -1115,6 +1116,20 @@ export default function App() {
                   Calendar
                 </Button>
                 <Button
+                  variant={currentView === 'workouts' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => {
+                    checkUnsavedChanges(() => {
+                      clearWorkflowState();
+                      setCurrentView('workouts');
+                    });
+                  }}
+                  className="gap-2"
+                >
+                  <Dumbbell className="w-4 h-4" />
+                  My Workouts
+                </Button>
+                <Button
                   variant={currentView === 'history' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => {
@@ -1562,6 +1577,34 @@ export default function App() {
               city: user.city,
               state: user.state,
               zipCode: user.zipCode,
+            }}
+          />
+        )}
+
+        {currentView === 'workouts' && (
+          <UnifiedWorkouts
+            profileId={user.id}
+            onEditWorkout={(item) => {
+              // Load the workout and go to workflow
+              setWorkout(item.workout);
+              setValidation(item.validation || null);
+              setSources(item.sources || []);
+              setSelectedDevice(item.device as any);
+              setCurrentView('workflow');
+              setCurrentStep('structure');
+            }}
+            onLoadWorkout={(item) => {
+              // Load the workout and go to workflow
+              setWorkout(item.workout);
+              setValidation(item.validation || null);
+              setSources(item.sources || []);
+              setSelectedDevice(item.device as any);
+              setCurrentView('workflow');
+              setCurrentStep('structure');
+            }}
+            onDeleteWorkout={(id) => {
+              // Delete is handled internally by UnifiedWorkouts
+              console.log('Workout deleted:', id);
             }}
           />
         )}
