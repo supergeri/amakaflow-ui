@@ -4,7 +4,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Youtube, Image, Sparkles, Plus, Trash2, Loader2, Upload, X, Eye, Sparkles as VisionIcon, XCircle, Copy, Check, Music2 } from 'lucide-react';
+import { Youtube, Image, Sparkles, Plus, Trash2, Loader2, Upload, X, Eye, Sparkles as VisionIcon, XCircle, Copy, Check, Music2, Video, Instagram } from 'lucide-react';
 import { Source, SourceType, WorkoutStructure } from '../types/workout';
 import { Textarea } from './ui/textarea';
 import { WorkoutTemplates } from './WorkoutTemplates';
@@ -14,6 +14,18 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 
+// Helper to detect video platform from URL
+type VideoPlatform = 'youtube' | 'tiktok' | 'instagram' | 'unknown';
+
+function detectVideoPlatform(url: string): VideoPlatform {
+  if (!url) return 'unknown';
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'youtube';
+  if (lowerUrl.includes('tiktok.com') || lowerUrl.includes('vm.tiktok.com')) return 'tiktok';
+  if (lowerUrl.includes('instagram.com') || lowerUrl.includes('instagr.am')) return 'instagram';
+  return 'unknown';
+}
+
 interface AddSourcesProps {
   onGenerate: (sources: Source[]) => void;
   onLoadTemplate: (workout: WorkoutStructure) => void;
@@ -21,6 +33,152 @@ interface AddSourcesProps {
   loading: boolean;
   progress?: string | null;
   onCancel?: () => void;
+}
+
+// Video input section component with platform auto-detection
+interface VideoInputSectionProps {
+  currentInput: string;
+  setCurrentInput: (value: string) => void;
+  onAddSource: () => void;
+}
+
+function VideoInputSection({ currentInput, setCurrentInput, onAddSource }: VideoInputSectionProps) {
+  const detectedPlatform = detectVideoPlatform(currentInput);
+
+  const getPlatformInfo = () => {
+    switch (detectedPlatform) {
+      case 'youtube':
+        return {
+          icon: <Youtube className="w-4 h-4 text-red-600" />,
+          name: 'YouTube',
+          method: 'Transcript + AI Exercise Extraction',
+          detail: 'OpenAI GPT-4o-mini or Claude 3.5 Sonnet',
+          badge: 'AI-Powered',
+          badgeColor: 'bg-blue-600',
+          alertColor: 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800',
+          alertIconColor: 'text-blue-600 dark:text-blue-400',
+          alertTextColor: 'text-blue-800 dark:text-blue-200',
+          steps: [
+            { label: 'Step 1', text: 'Transcripts extracted using youtube-transcript.io' },
+            { label: 'Step 2', text: 'Exercises extracted from transcript using AI' },
+          ],
+          alertText: 'Free Tier: 25 transcripts per month. See Settings → General → YouTube Ingestion for more info.',
+        };
+      case 'tiktok':
+        return {
+          icon: <Music2 className="w-4 h-4 text-pink-600" />,
+          name: 'TikTok',
+          method: 'Vision AI Exercise Detection',
+          detail: 'OpenAI GPT-4o-mini analyzes video frames',
+          badge: 'AI Vision',
+          badgeColor: 'bg-pink-600',
+          alertColor: 'bg-pink-50 dark:bg-pink-950 border-pink-200 dark:border-pink-800',
+          alertIconColor: 'text-pink-600 dark:text-pink-400',
+          alertTextColor: 'text-pink-800 dark:text-pink-200',
+          steps: [
+            { label: 'Step 1', text: 'Video downloaded and frames extracted' },
+            { label: 'Step 2', text: 'GPT-4o Vision analyzes frames to identify exercises' },
+          ],
+          alertText: 'Processing may take 20-30 seconds as video frames are analyzed.',
+        };
+      case 'instagram':
+        return {
+          icon: <Instagram className="w-4 h-4 text-purple-600" />,
+          name: 'Instagram',
+          method: 'oEmbed Preview + Manual Exercise Entry',
+          detail: 'Add exercises manually with autocomplete',
+          badge: 'Semi-Manual',
+          badgeColor: 'bg-purple-600',
+          alertColor: 'bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800',
+          alertIconColor: 'text-purple-600 dark:text-purple-400',
+          alertTextColor: 'text-purple-800 dark:text-purple-200',
+          steps: [
+            { label: 'Step 1', text: 'Video thumbnail and metadata fetched via oEmbed' },
+            { label: 'Step 2', text: 'You add exercises manually with autocomplete suggestions' },
+          ],
+          alertText: 'Instagram videos require manual exercise entry. oEmbed provides thumbnail and creator info when available.',
+        };
+      default:
+        return null;
+    }
+  };
+
+  const platformInfo = getPlatformInfo();
+
+  return (
+    <>
+      {/* Platform detection indicator */}
+      {platformInfo ? (
+        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+          <div className="flex items-center gap-2">
+            {platformInfo.icon}
+            <div>
+              <p className="text-sm font-medium">
+                {platformInfo.name}: {platformInfo.method}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {platformInfo.detail}
+              </p>
+            </div>
+          </div>
+          <Badge variant="default" className={platformInfo.badgeColor}>{platformInfo.badge}</Badge>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+          <div className="flex items-center gap-2">
+            <Video className="w-4 h-4 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">
+                Paste a video URL to get started
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Supports YouTube, TikTok, and Instagram
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <Badge variant="outline" className="text-xs"><Youtube className="w-3 h-3 mr-1" />YouTube</Badge>
+            <Badge variant="outline" className="text-xs"><Music2 className="w-3 h-3 mr-1" />TikTok</Badge>
+            <Badge variant="outline" className="text-xs"><Instagram className="w-3 h-3 mr-1" />Instagram</Badge>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label>Video URL</Label>
+        <div className="flex gap-2">
+          <Input
+            placeholder="https://youtube.com/watch?v=... or instagram.com/reel/... or tiktok.com/..."
+            value={currentInput}
+            onChange={(e) => setCurrentInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onAddSource()}
+          />
+          <Button onClick={onAddSource} disabled={detectedPlatform === 'unknown' && !currentInput}>
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {platformInfo && (
+          <>
+            <div className="space-y-1">
+              {platformInfo.steps.map((step, i) => (
+                <p key={i} className="text-xs text-muted-foreground">
+                  <strong>{step.label}:</strong> {step.text}
+                </p>
+              ))}
+            </div>
+
+            <Alert className={platformInfo.alertColor}>
+              <Info className={`h-4 w-4 ${platformInfo.alertIconColor}`} />
+              <AlertDescription className={`text-xs ${platformInfo.alertTextColor}`}>
+                {platformInfo.alertText}
+              </AlertDescription>
+            </Alert>
+          </>
+        )}
+      </div>
+    </>
+  );
 }
 
 // Universal AI prompt component for copying (collapsible)
@@ -184,7 +342,7 @@ Always follow the exact format above. No exceptions.`;
 export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, progress, onCancel }: AddSourcesProps) {
   const [sources, setSources] = useState<Source[]>([]);
   const [currentInput, setCurrentInput] = useState('');
-  const [activeTab, setActiveTab] = useState<SourceType>('image');
+  const [activeTab, setActiveTab] = useState<string>('video');
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -203,21 +361,26 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
 
   const addSource = () => {
     if (!currentInput.trim() && !uploadedImage) return;
-    
-    // For images: prefer URL if provided, otherwise handle file upload
+
     let content: string;
-    if (activeTab === 'image') {
+    let sourceType: SourceType;
+
+    if (activeTab === 'video') {
+      // Handle unified video tab - detect platform from URL
+      const platform = detectVideoPlatform(currentInput.trim());
+      if (platform === 'unknown') {
+        // Not a recognized video URL
+        return;
+      }
+      content = currentInput.trim();
+      sourceType = platform === 'instagram' ? 'youtube' : platform; // Map instagram to youtube for now (will be handled by backend)
+      setCurrentInput('');
+    } else if (activeTab === 'image') {
       if (currentInput.trim()) {
-        // Check if it's a YouTube URL
-        if (/youtube\.com|youtu\.be/i.test(currentInput.trim())) {
-          // YouTube URL detected - switch to YouTube tab
-          setActiveTab('youtube');
-          return;
-        }
-        // Check if it's a TikTok URL
-        if (/tiktok\.com|vm\.tiktok\.com/i.test(currentInput.trim())) {
-          // TikTok URL detected - switch to TikTok tab
-          setActiveTab('tiktok');
+        // Check if it's a video URL - redirect to video tab
+        const platform = detectVideoPlatform(currentInput.trim());
+        if (platform !== 'unknown') {
+          setActiveTab('video');
           return;
         }
         // Use URL for image
@@ -231,42 +394,27 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
       } else {
         return;
       }
+      sourceType = 'image';
     } else {
-      // For other types, use currentInput or filename
-      content = uploadedImage ? uploadedImage.name : currentInput;
-      
-      // Auto-detect YouTube URLs and switch to YouTube tab if needed
-      if (content && /youtube\.com|youtu\.be/i.test(content) && activeTab !== 'youtube') {
-        // YouTube URL detected but wrong tab - switch to YouTube tab
-        setActiveTab('youtube');
-        // Don't add source yet, let user confirm or re-add
-        return;
-      }
-      
-      // Auto-detect TikTok URLs and switch to TikTok tab if needed
-      if (content && /tiktok\.com|vm\.tiktok\.com/i.test(content) && activeTab !== 'tiktok') {
-        // TikTok URL detected but wrong tab - switch to TikTok tab
-        setActiveTab('tiktok');
-        // Don't add source yet, let user confirm or re-add
-        return;
-      }
-      
+      // ai-text
+      content = currentInput.trim();
+      sourceType = 'ai-text';
       setCurrentInput('');
       setUploadedImage(null);
       setImagePreview(null);
     }
-    
+
     const newSource: Source = {
       id: Date.now().toString(),
-      type: activeTab,
+      type: sourceType,
       content,
       timestamp: new Date()
     };
-    
+
     setSources([...sources, newSource]);
   };
 
-  const handleTabChange = (newTab: SourceType) => {
+  const handleTabChange = (newTab: string) => {
     setActiveTab(newTab);
     setCurrentInput('');
     setUploadedImage(null);
@@ -319,11 +467,11 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
 
   const getSourceIcon = (type: SourceType) => {
     switch (type) {
-      case 'youtube': return <Youtube className="w-4 h-4" />;
-      case 'tiktok': return <Music2 className="w-4 h-4" />;
+      case 'youtube': return <Youtube className="w-4 h-4 text-red-600" />;
+      case 'tiktok': return <Music2 className="w-4 h-4 text-pink-600" />;
       case 'image': return <Image className="w-4 h-4" />;
       case 'ai-text': return <Sparkles className="w-4 h-4" />;
-      default: return null;
+      default: return <Video className="w-4 h-4" />;
     }
   };
 
@@ -346,14 +494,10 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="youtube">
-                  <Youtube className="w-4 h-4 mr-2" />
-                  YouTube
-                </TabsTrigger>
-                <TabsTrigger value="tiktok">
-                  <Music2 className="w-4 h-4 mr-2" />
-                  TikTok
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="video">
+                  <Video className="w-4 h-4 mr-2" />
+                  Video
                 </TabsTrigger>
                 <TabsTrigger value="image">
                   <Image className="w-4 h-4 mr-2" />
@@ -365,102 +509,12 @@ export function AddSources({ onGenerate, onLoadTemplate, onCreateNew, loading, p
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="youtube" className="space-y-4">
-                {/* Show current processing method */}
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
-                  <div className="flex items-center gap-2">
-                    <Youtube className="w-4 h-4 text-red-600" />
-                    <div>
-                      <p className="text-sm font-medium">
-                        Processing: Transcript + AI Exercise Extraction
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        OpenAI GPT-4o-mini or Claude 3.5 Sonnet
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="default" className="bg-blue-600">AI-Powered</Badge>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>YouTube Video URL</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="https://youtube.com/watch?v=..."
-                      value={currentInput}
-                      onChange={(e) => setCurrentInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && addSource()}
-                    />
-                    <Button onClick={addSource}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">
-                      <strong>Step 1:</strong> Transcripts extracted using <a href="https://www.youtube-transcript.io/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">youtube-transcript.io</a>
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      <strong>Step 2:</strong> Exercises extracted from transcript using AI (OpenAI GPT-4o-mini or Anthropic Claude)
-                    </p>
-                  </div>
-
-                  <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <AlertDescription className="text-xs text-blue-800 dark:text-blue-200">
-                      <strong>Free Tier:</strong> 25 transcripts per month. See <span className="font-medium">Settings → General → YouTube Ingestion</span> for more info.
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="tiktok" className="space-y-4">
-                {/* Show current processing method */}
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
-                  <div className="flex items-center gap-2">
-                    <Music2 className="w-4 h-4 text-pink-600" />
-                    <div>
-                      <p className="text-sm font-medium">
-                        Processing: Vision AI Exercise Detection
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        OpenAI GPT-4o-mini analyzes video frames
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="default" className="bg-pink-600">AI Vision</Badge>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>TikTok Video URL</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="https://www.tiktok.com/@username/video/..."
-                      value={currentInput}
-                      onChange={(e) => setCurrentInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && addSource()}
-                    />
-                    <Button onClick={addSource}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">
-                      <strong>Step 1:</strong> Video downloaded and frames extracted
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      <strong>Step 2:</strong> GPT-4o Vision analyzes frames to identify exercises shown
-                    </p>
-                  </div>
-
-                  <Alert className="bg-pink-50 dark:bg-pink-950 border-pink-200 dark:border-pink-800">
-                    <Info className="h-4 w-4 text-pink-600 dark:text-pink-400" />
-                    <AlertDescription className="text-xs text-pink-800 dark:text-pink-200">
-                      <strong>Supported:</strong> Public TikTok videos. Processing may take 20-30 seconds as video frames are analyzed.
-                    </AlertDescription>
-                  </Alert>
-                </div>
+              <TabsContent value="video" className="space-y-4">
+                <VideoInputSection
+                  currentInput={currentInput}
+                  setCurrentInput={setCurrentInput}
+                  onAddSource={addSource}
+                />
               </TabsContent>
 
               <TabsContent value="image" className="space-y-4">
