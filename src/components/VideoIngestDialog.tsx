@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
-import { Loader2, Link, Youtube, Instagram, Plus, Trash2, GripVertical, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader2, Link, Youtube, Instagram, Plus, Trash2, GripVertical, CheckCircle, AlertCircle, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   detectVideoUrl,
@@ -89,6 +89,15 @@ export function VideoIngestDialog({ open, onOpenChange, userId, onWorkoutCreated
     }
   }, [searchQuery]);
 
+  // Client-side platform detection (fallback when API unavailable)
+  const detectPlatformFromUrl = (url: string): VideoPlatform => {
+    const lowerUrl = url.toLowerCase();
+    if (lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be')) return 'youtube';
+    if (lowerUrl.includes('tiktok.com') || lowerUrl.includes('vm.tiktok.com')) return 'tiktok';
+    if (lowerUrl.includes('instagram.com') || lowerUrl.includes('instagr.am')) return 'instagram';
+    return 'unknown';
+  };
+
   const handleDetectUrl = useCallback(async () => {
     if (!videoUrl.trim()) {
       toast.error('Please enter a video URL');
@@ -99,38 +108,55 @@ export function VideoIngestDialog({ open, onOpenChange, userId, onWorkoutCreated
     setError(null);
     setStep('detecting');
 
-    try {
-      // First check if already cached
-      const cacheResult = await checkVideoCache(videoUrl);
-      if (cacheResult.cached && cacheResult.cache_entry) {
-        setCachedVideo(cacheResult.cache_entry);
-        setPlatform(cacheResult.cache_entry.platform);
-        setVideoId(cacheResult.cache_entry.video_id);
-        setNormalizedUrl(cacheResult.cache_entry.normalized_url);
+    // First do client-side detection as fallback
+    const clientPlatform = detectPlatformFromUrl(videoUrl);
 
-        // If cache has workout data, show cached step
-        if (cacheResult.cache_entry.workout_data?.exercises?.length > 0) {
-          setStep('cached');
-          setIsLoading(false);
-          return;
+    if (clientPlatform === 'unknown') {
+      setError('Could not detect video platform. Supported: YouTube, TikTok, Instagram');
+      setStep('url');
+      setIsLoading(false);
+      return;
+    }
+
+    // Set platform from client-side detection
+    setPlatform(clientPlatform);
+    setNormalizedUrl(videoUrl);
+
+    try {
+      // Try to check cache first (non-blocking)
+      try {
+        const cacheResult = await checkVideoCache(videoUrl);
+        if (cacheResult.cached && cacheResult.cache_entry) {
+          setCachedVideo(cacheResult.cache_entry);
+          setVideoId(cacheResult.cache_entry.video_id);
+          setNormalizedUrl(cacheResult.cache_entry.normalized_url);
+
+          // If cache has workout data, show cached step
+          if (cacheResult.cache_entry.workout_data?.exercises?.length > 0) {
+            setStep('cached');
+            setIsLoading(false);
+            return;
+          }
         }
+      } catch (cacheErr) {
+        console.warn('Cache check failed, continuing without cache:', cacheErr);
       }
 
-      // Detect platform
-      const detectResult = await detectVideoUrl(videoUrl);
-      setPlatform(detectResult.platform);
-      setVideoId(detectResult.video_id);
-      setNormalizedUrl(detectResult.normalized_url);
-
-      if (detectResult.platform === 'unknown') {
-        setError('Could not detect video platform. Please check the URL.');
-        setStep('url');
-        setIsLoading(false);
-        return;
+      // Try to get more info from backend API
+      try {
+        const detectResult = await detectVideoUrl(videoUrl);
+        if (detectResult.video_id) {
+          setVideoId(detectResult.video_id);
+        }
+        if (detectResult.normalized_url) {
+          setNormalizedUrl(detectResult.normalized_url);
+        }
+      } catch (detectErr) {
+        console.warn('Backend detection failed, using client-side detection:', detectErr);
       }
 
       // Check if auto-extraction is supported
-      if (supportsAutoExtraction(detectResult.platform)) {
+      if (supportsAutoExtraction(clientPlatform)) {
         // Use existing auto-extraction flow
         setStep('extracting');
         const result = await ingestFollowAlong(videoUrl, userId);
@@ -141,7 +167,7 @@ export function VideoIngestDialog({ open, onOpenChange, userId, onWorkoutCreated
         // Instagram - fetch oEmbed and show manual entry
         setStep('preview');
         try {
-          const oembed = await fetchOEmbed(videoUrl, detectResult.platform);
+          const oembed = await fetchOEmbed(videoUrl, clientPlatform);
           setOembedData(oembed);
 
           // Pre-fill title from oEmbed
@@ -158,7 +184,16 @@ export function VideoIngestDialog({ open, onOpenChange, userId, onWorkoutCreated
         setStep('manual-entry');
       }
     } catch (err: any) {
-      console.error('Video detection error:', err);
+      console.error('Video processing error:', err);
+
+      // For Instagram, still allow manual entry even if everything fails
+      if (clientPlatform === 'instagram') {
+        setWorkoutTitle('Instagram Workout');
+        setStep('manual-entry');
+        setIsLoading(false);
+        return;
+      }
+
       setError(err.message || 'Failed to process video URL');
       setStep('url');
     } finally {
@@ -384,8 +419,8 @@ export function VideoIngestDialog({ open, onOpenChange, userId, onWorkoutCreated
         {/* Manual Entry Step (Instagram) */}
         {step === 'manual-entry' && (
           <div className="space-y-4">
-            {/* oEmbed Preview */}
-            {oembedData?.success && oembedData.thumbnail_url && (
+            {/* oEmbed Preview OR Video Link */}
+            {oembedData?.success && oembedData.thumbnail_url ? (
               <div className="relative aspect-video rounded-lg overflow-hidden bg-muted">
                 <img
                   src={oembedData.thumbnail_url}
@@ -400,6 +435,28 @@ export function VideoIngestDialog({ open, onOpenChange, userId, onWorkoutCreated
                   </div>
                 )}
               </div>
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">Watch the video to see exercises</p>
+                      <p className="text-xs text-muted-foreground">
+                        Open the video in a new tab and add the exercises you see below
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(videoUrl, '_blank')}
+                      className="gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      View Video
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Workout Title */}
