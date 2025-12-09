@@ -21,7 +21,7 @@ export async function ingestFollowAlong(
   instagramUrl: string,
   userId: string
 ): Promise<IngestFollowAlongResponse> {
-  
+
   const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along/ingest`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -37,9 +37,65 @@ export async function ingestFollowAlong(
   }
 
   const result = await response.json();
-  
+
   if (!result.success) {
     throw new Error(result.message || "Failed to ingest workout");
+  }
+
+  return { followAlongWorkout: result.followAlongWorkout };
+}
+
+/**
+ * Create a follow-along workout manually (no AI extraction)
+ * For Instagram and other platforms that don't support auto-extraction
+ */
+export interface ManualWorkoutStep {
+  label: string;
+  durationSec?: number;
+  targetReps?: number;
+  notes?: string;
+}
+
+export async function createFollowAlongManual(params: {
+  sourceUrl: string;
+  userId: string;
+  title: string;
+  description?: string;
+  steps: ManualWorkoutStep[];
+  source?: VideoPlatform;
+  thumbnailUrl?: string;
+}): Promise<IngestFollowAlongResponse> {
+  const { sourceUrl, userId, title, description, steps, source, thumbnailUrl } = params;
+
+  const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along/create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sourceUrl,
+      userId,
+      title,
+      description,
+      steps: steps.map((s, i) => ({
+        order: i,
+        label: s.label,
+        duration_sec: s.durationSec,
+        target_reps: s.targetReps,
+        notes: s.notes,
+      })),
+      source: source || detectVideoPlatform(sourceUrl),
+      thumbnailUrl,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to create workout: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.message || "Failed to create workout");
   }
 
   return { followAlongWorkout: result.followAlongWorkout };

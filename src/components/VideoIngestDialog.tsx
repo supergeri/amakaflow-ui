@@ -19,7 +19,7 @@ import {
   type WorkoutStep,
 } from '../lib/video-api';
 import { searchExercises, type ExerciseLibraryItem } from '../lib/exercise-library';
-import { ingestFollowAlong } from '../lib/follow-along-api';
+import { ingestFollowAlong, createFollowAlongManual } from '../lib/follow-along-api';
 import type { FollowAlongWorkout } from '../types/follow-along';
 
 type IngestStep = 'url' | 'detecting' | 'preview' | 'manual-entry' | 'extracting' | 'cached';
@@ -265,7 +265,7 @@ export function VideoIngestDialog({ open, onOpenChange, userId, onWorkoutCreated
     setError(null);
 
     try {
-      // Prepare workout data
+      // Prepare workout data for cache
       const workoutData = {
         title: workoutTitle,
         exercises: exercises.map((ex) => ({
@@ -277,17 +277,30 @@ export function VideoIngestDialog({ open, onOpenChange, userId, onWorkoutCreated
         source_link: normalizedUrl || videoUrl,
       };
 
-      // Save to cache
-      await saveVideoToCache({
+      // Save to cache (non-blocking, for future lookups)
+      saveVideoToCache({
         url: videoUrl,
         workout_data: workoutData,
         oembed_data: oembedData ? oembedData : undefined,
         processing_method: oembedData?.success ? 'manual_with_oembed' : 'manual_no_oembed',
         ingested_by: userId,
+      }).catch((err) => console.warn('Cache save failed (non-blocking):', err));
+
+      // Create the follow-along workout directly with manual data (no AI extraction)
+      const result = await createFollowAlongManual({
+        sourceUrl: normalizedUrl || videoUrl,
+        userId,
+        title: workoutTitle,
+        steps: exercises.map((ex) => ({
+          label: ex.label,
+          durationSec: ex.duration_sec,
+          targetReps: ex.target_reps,
+          notes: ex.notes,
+        })),
+        source: platform || undefined,
+        thumbnailUrl: oembedData?.thumbnail_url || undefined,
       });
 
-      // Now create the follow-along workout via mapper-api
-      const result = await ingestFollowAlong(videoUrl, userId);
       onWorkoutCreated(result.followAlongWorkout);
       toast.success('Workout created successfully!');
       onOpenChange(false);
@@ -297,7 +310,7 @@ export function VideoIngestDialog({ open, onOpenChange, userId, onWorkoutCreated
     } finally {
       setIsLoading(false);
     }
-  }, [workoutTitle, exercises, videoUrl, normalizedUrl, oembedData, userId, onWorkoutCreated, onOpenChange]);
+  }, [workoutTitle, exercises, videoUrl, normalizedUrl, oembedData, platform, userId, onWorkoutCreated, onOpenChange]);
 
   const renderPlatformBadge = () => {
     if (!platform || platform === 'unknown') return null;
