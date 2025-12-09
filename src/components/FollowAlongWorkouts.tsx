@@ -1,25 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Badge } from './ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Calendar } from './ui/calendar';
 import { Play, Clock, List, CheckCircle2, ExternalLink, Plus, Loader2, CalendarIcon, Smartphone, Trash2 } from 'lucide-react';
 // Using native Date formatting
-import { ingestFollowAlong, listFollowAlong, getFollowAlong, pushToGarmin, pushToAppleWatch, pushToIOSCompanion, deleteFollowAlong } from '../lib/follow-along-api';
+import { listFollowAlong, getFollowAlong, pushToGarmin, pushToAppleWatch, pushToIOSCompanion, deleteFollowAlong } from '../lib/follow-along-api';
 import type { FollowAlongWorkout } from '../types/follow-along';
 import { toast } from 'sonner';
 import { useClerkUser } from '../lib/clerk-auth';
 import { FollowAlongInstructions } from './FollowAlongInstructions';
+import { VideoIngestDialog } from './VideoIngestDialog';
 
 export function FollowAlongWorkouts() {
   const { user: clerkUser } = useClerkUser();
   const [workouts, setWorkouts] = useState<FollowAlongWorkout[]>([]);
   const [loading, setLoading] = useState(false);
-  const [ingesting, setIngesting] = useState(false);
-  const [videoUrl, setVideoUrl] = useState('');
   const [selectedWorkout, setSelectedWorkout] = useState<FollowAlongWorkout | null>(null);
   const [showIngestDialog, setShowIngestDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
@@ -46,7 +44,7 @@ export function FollowAlongWorkouts() {
       toast.error('Please sign in to view workouts');
       return;
     }
-    
+
     setLoading(true);
     try {
       const result = await listFollowAlong(clerkUser.id);
@@ -58,29 +56,9 @@ export function FollowAlongWorkouts() {
     }
   };
 
-  const handleIngest = async () => {
-    if (!videoUrl.trim()) {
-      toast.error('Please enter a video URL');
-      return;
-    }
-
-    if (!clerkUser?.id) {
-      toast.error('Please sign in to add workouts');
-      return;
-    }
-
-    setIngesting(true);
-    try {
-      const result = await ingestFollowAlong(videoUrl, clerkUser.id);
-      setWorkouts([result.followAlongWorkout, ...workouts]);
-      setVideoUrl('');
-      setShowIngestDialog(false);
-      toast.success('Workout extracted successfully!');
-    } catch (error: any) {
-      toast.error(`Failed to extract workout: ${error.message}`);
-    } finally {
-      setIngesting(false);
-    }
+  const handleWorkoutCreated = (workout: FollowAlongWorkout) => {
+    setWorkouts([workout, ...workouts]);
+    setShowIngestDialog(false);
   };
 
   const handleViewDetails = async (workout: FollowAlongWorkout) => {
@@ -224,39 +202,18 @@ export function FollowAlongWorkouts() {
           <p className="text-muted-foreground">Extract and sync workout videos from Instagram, YouTube, TikTok & more</p>
         </div>
         <FollowAlongInstructions />
-        <Dialog open={showIngestDialog} onOpenChange={setShowIngestDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Workout
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Video Workout</DialogTitle>
-              <DialogDescription>
-                Paste a workout video URL from Instagram, YouTube, TikTok, or Vimeo
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <Input
-                placeholder="https://youtube.com/watch?v=... or instagram.com/p/..."
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-              />
-              <Button onClick={handleIngest} disabled={ingesting || !videoUrl.trim()}>
-                {ingesting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Extracting...
-                  </>
-                ) : (
-                  'Extract Workout'
-                )}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setShowIngestDialog(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Workout
+        </Button>
+        {clerkUser?.id && (
+          <VideoIngestDialog
+            open={showIngestDialog}
+            onOpenChange={setShowIngestDialog}
+            userId={clerkUser.id}
+            onWorkoutCreated={handleWorkoutCreated}
+          />
+        )}
       </div>
 
       {loading ? (
