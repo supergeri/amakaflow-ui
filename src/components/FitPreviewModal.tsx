@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
-import { Repeat, Timer, Dumbbell, Eye, Loader2 } from 'lucide-react';
+import { Repeat, Timer, Dumbbell, Eye, Loader2, Copy, Check } from 'lucide-react';
 import { WorkoutStructure, ValidationResponse } from '../types/workout';
 import { applyValidationMappings } from '../lib/workout-utils';
+import { toast } from 'sonner';
 
 interface FitPreviewModalProps {
   workout: WorkoutStructure;
@@ -32,6 +33,25 @@ export function FitPreviewModal({ workout, validation, trigger, useLapButton = f
   const [steps, setSteps] = useState<BackendPreviewStep[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const copyDebugJson = async () => {
+    const mappedWorkout = applyValidationMappings(workout, validation);
+    const debugData = {
+      original_workout: workout,
+      mapped_workout: mappedWorkout,
+      validation: validation,
+      preview_steps: steps,
+    };
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(debugData, null, 2));
+      setCopied(true);
+      toast.success('Debug JSON copied to clipboard');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error('Failed to copy debug JSON');
+    }
+  };
 
   // Fetch preview steps from backend when modal opens
   useEffect(() => {
@@ -183,20 +203,30 @@ export function FitPreviewModal({ workout, validation, trigger, useLapButton = f
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="flex justify-center gap-6 text-xs text-muted-foreground pt-2">
-          <div className="flex items-center gap-1">
-            <Dumbbell className="w-3 h-3 text-blue-500" />
-            <span>Exercise</span>
+        {/* Legend and Debug */}
+        <div className="flex justify-between items-center pt-2">
+          <div className="flex gap-6 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Dumbbell className="w-3 h-3 text-blue-500" />
+              <span>Exercise</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Repeat className="w-3 h-3 text-green-500" />
+              <span>Sets</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Timer className="w-3 h-3 text-gray-500" />
+              <span>Rest</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Repeat className="w-3 h-3 text-green-500" />
-            <span>Sets</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Timer className="w-3 h-3 text-gray-500" />
-            <span>Rest</span>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={copyDebugJson}
+            title="Copy debug JSON (workout + validation + preview)"
+          >
+            {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
