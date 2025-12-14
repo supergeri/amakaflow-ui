@@ -108,10 +108,23 @@ export function FitPreviewModal({ workout, validation, trigger, useLapButton = f
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Garmin Watch Preview</DialogTitle>
-          <DialogDescription>
-            How this workout will appear on your Garmin watch
-          </DialogDescription>
+          <div className="flex justify-between items-start">
+            <div>
+              <DialogTitle>Garmin Watch Preview</DialogTitle>
+              <DialogDescription>
+                How this workout will appear on your Garmin watch
+              </DialogDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={copyDebugJson}
+              className="flex items-center gap-2"
+            >
+              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+              Copy JSON
+            </Button>
+          </div>
         </DialogHeader>
 
         {/* Watch-like display */}
@@ -203,30 +216,20 @@ export function FitPreviewModal({ workout, validation, trigger, useLapButton = f
           </div>
         </div>
 
-        {/* Legend and Debug */}
-        <div className="flex justify-between items-center pt-2">
-          <div className="flex gap-6 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Dumbbell className="w-3 h-3 text-blue-500" />
-              <span>Exercise</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Repeat className="w-3 h-3 text-green-500" />
-              <span>Sets</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Timer className="w-3 h-3 text-gray-500" />
-              <span>Rest</span>
-            </div>
+        {/* Legend */}
+        <div className="flex justify-center gap-6 text-xs text-muted-foreground pt-2">
+          <div className="flex items-center gap-1">
+            <Dumbbell className="w-3 h-3 text-blue-500" />
+            <span>Exercise</span>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={copyDebugJson}
-            title="Copy debug JSON (workout + validation + preview)"
-          >
-            {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Repeat className="w-3 h-3 text-green-500" />
+            <span>Sets</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Timer className="w-3 h-3 text-gray-500" />
+            <span>Rest</span>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
