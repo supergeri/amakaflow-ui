@@ -378,6 +378,10 @@ function formatExerciseForStrava(exercise: Exercise, index: number, inSuperset: 
  * to FIT, we need to use the mapped_to names so the backend doesn't
  * re-lookup and potentially change the user's selections.
  *
+ * Uses NAME-BASED mapping: all exercises with the same original_name
+ * get the same mapped_to value. This handles workouts with repeated
+ * exercises (like 5 rounds of the same exercises).
+ *
  * @param workout - The workout structure with original exercise names
  * @param validation - The validation response with mapped_to values
  * @returns A new workout with exercise names replaced by their mapped_to values
@@ -390,44 +394,43 @@ export function applyValidationMappings(
     return workout;
   }
 
-  // Build a lookup map from location -> mapped_to name
-  // Location format: "exercises[N]" or "supersets[N].exercises[M]"
-  const mappingsByLocation = new Map<string, string>();
+  // Build a lookup map from original_name -> mapped_to name
+  // This ensures ALL exercises with the same name get the same mapping
+  const mappingsByName = new Map<string, string>();
 
   // Include all validated exercises (they have confirmed mapped_to values)
   for (const result of validation.validated_exercises || []) {
-    if (result.mapped_to && result.location) {
-      mappingsByLocation.set(result.location, result.mapped_to);
+    if (result.mapped_to && result.original_name) {
+      // Use original_name as key so all instances get the same mapping
+      mappingsByName.set(result.original_name, result.mapped_to);
     }
   }
 
   // Also include needs_review items that have a mapped_to value
   // (even if not confirmed, we want to preserve any existing mapping)
   for (const result of validation.needs_review || []) {
-    if (result.mapped_to && result.location && !mappingsByLocation.has(result.location)) {
-      mappingsByLocation.set(result.location, result.mapped_to);
+    if (result.mapped_to && result.original_name && !mappingsByName.has(result.original_name)) {
+      mappingsByName.set(result.original_name, result.mapped_to);
     }
   }
 
-  if (mappingsByLocation.size === 0) {
+  if (mappingsByName.size === 0) {
     return workout;
   }
 
-  // Deep clone and apply mappings
+  // Deep clone and apply mappings by exercise name
   return {
     ...workout,
-    blocks: workout.blocks.map((block, blockIdx) => ({
+    blocks: workout.blocks.map((block) => ({
       ...block,
-      exercises: (block.exercises || []).map((exercise, exerciseIdx) => {
-        const location = `exercises[${exerciseIdx}]`;
-        const mappedName = mappingsByLocation.get(location);
+      exercises: (block.exercises || []).map((exercise) => {
+        const mappedName = mappingsByName.get(exercise.name);
         return mappedName ? { ...exercise, name: mappedName } : exercise;
       }),
-      supersets: (block.supersets || []).map((superset, supersetIdx) => ({
+      supersets: (block.supersets || []).map((superset) => ({
         ...superset,
-        exercises: (superset.exercises || []).map((exercise, exerciseIdx) => {
-          const location = `supersets[${supersetIdx}].exercises[${exerciseIdx}]`;
-          const mappedName = mappingsByLocation.get(location);
+        exercises: (superset.exercises || []).map((exercise) => {
+          const mappedName = mappingsByName.get(exercise.name);
           return mappedName ? { ...exercise, name: mappedName } : exercise;
         }),
       })),
