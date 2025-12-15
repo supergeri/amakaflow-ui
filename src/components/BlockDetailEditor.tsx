@@ -404,6 +404,30 @@ export function BlockDetailEditor({
           </div>
         )}
 
+        {/* Rest Type for regular/single blocks - show standalone selector */}
+        {(!block.structure || block.structure === 'regular') && (
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>Default Rest Type</Label>
+              <Select
+                value={block.rest_type || 'timed'}
+                onValueChange={(value: RestType) => onBlockUpdate({ ...block, rest_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="timed">Timed (countdown)</SelectItem>
+                  <SelectItem value="button">Lap Button</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Applied to exercises without individual rest type
+              </p>
+            </div>
+          </div>
+        )}
+
         {(block.structure === 'superset' || block.structure === 'circuit' || block.structure === 'rounds') && (
           <div className="grid grid-cols-3 gap-2">
             <div>

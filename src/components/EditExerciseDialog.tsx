@@ -6,8 +6,9 @@ import { Label } from './ui/label';
 import { Slider } from './ui/slider';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Textarea } from './ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { X } from 'lucide-react';
-import { Exercise } from '../types/workout';
+import { Exercise, RestType } from '../types/workout';
 
 interface EditExerciseDialogProps {
   open: boolean;
@@ -64,6 +65,7 @@ export function EditExerciseDialog({ open, exercise, onSave, onClose }: EditExer
   const [distanceM, setDistanceM] = useState(1000);
   const [distanceRange, setDistanceRange] = useState('');
   const [restSec, setRestSec] = useState(0);
+  const [restType, setRestType] = useState<RestType>('timed');
   const [notes, setNotes] = useState('');
 
   // Sync internal open state with prop - only open when prop becomes true, never close from prop
@@ -94,6 +96,7 @@ export function EditExerciseDialog({ open, exercise, onSave, onClose }: EditExer
       setDistanceRange(exercise.distance_range || '');
       // Default to 0 if rest_sec is not set (null or undefined)
       setRestSec(exercise.rest_sec !== null && exercise.rest_sec !== undefined ? exercise.rest_sec : 0);
+      setRestType(exercise.rest_type || 'timed');
       setNotes(exercise.notes || '');
       setExerciseType(getInitialType());
     }
@@ -109,6 +112,7 @@ export function EditExerciseDialog({ open, exercise, onSave, onClose }: EditExer
     distanceM?: number;
     distanceRange?: string;
     restSec?: number;
+    restType?: RestType;
     notes?: string;
     exerciseType?: ExerciseType;
   }) => {
@@ -122,12 +126,14 @@ export function EditExerciseDialog({ open, exercise, onSave, onClose }: EditExer
     const currentDistanceM = overrides?.distanceM ?? distanceM;
     const currentDistanceRange = overrides?.distanceRange ?? distanceRange;
     const currentRestSec = overrides?.restSec ?? restSec;
+    const currentRestType = overrides?.restType ?? restType;
     const currentNotes = overrides?.notes ?? notes;
     const currentExerciseType = overrides?.exerciseType ?? exerciseType;
 
     const updates: Partial<Exercise> = {
       name: currentName,
-      rest_sec: currentRestSec,
+      rest_sec: currentRestType === 'button' ? null : currentRestSec, // No duration needed for lap button
+      rest_type: currentRestType,
       notes: currentNotes || null,
     };
 
@@ -157,7 +163,7 @@ export function EditExerciseDialog({ open, exercise, onSave, onClose }: EditExer
     }
 
     onSave(updates);
-  }, [exercise, exerciseType, name, sets, reps, repsRange, durationSec, distanceM, distanceRange, restSec, notes, onSave]);
+  }, [exercise, exerciseType, name, sets, reps, repsRange, durationSec, distanceM, distanceRange, restSec, restType, notes, onSave]);
 
   // Handle tab change - clear other fields immediately
   const handleTabChange = (newType: ExerciseType) => {
@@ -421,39 +427,66 @@ export function EditExerciseDialog({ open, exercise, onSave, onClose }: EditExer
           {/* Rest (Universal) */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>Rest (seconds)</Label>
-              <span className="text-sm font-medium">{formatDuration(restSec)}</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-xs text-muted-foreground w-8">0s</span>
-              <Slider
-                value={[restSec]}
-                onValueChange={(values) => {
-                  const newValue = values[0];
-                  setRestSec(newValue);
-                  updateExerciseImmediately({ restSec: newValue });
+              <Label>Rest After Exercise</Label>
+              <Select
+                value={restType}
+                onValueChange={(value: RestType) => {
+                  setRestType(value);
+                  updateExerciseImmediately({ restType: value });
                 }}
-                min={0}
-                max={300}
-                step={5}
-                className="flex-1"
-              />
-              <span className="text-xs text-muted-foreground w-8 text-right">5m</span>
-              <Input
-                type="number"
-                value={restSec}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  const clampedVal = Math.max(0, Math.min(600, val));
-                  setRestSec(clampedVal);
-                  updateExerciseImmediately({ restSec: clampedVal });
-                }}
-                className="w-20 h-9 text-center"
-                min={0}
-                max={600}
-                placeholder="sec"
-              />
+              >
+                <SelectTrigger className="w-36 h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="timed">Timed</SelectItem>
+                  <SelectItem value="button">Lap Button</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            {restType === 'timed' ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Duration</span>
+                  <span className="text-sm font-medium">{formatDuration(restSec)}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-xs text-muted-foreground w-8">0s</span>
+                  <Slider
+                    value={[restSec]}
+                    onValueChange={(values) => {
+                      const newValue = values[0];
+                      setRestSec(newValue);
+                      updateExerciseImmediately({ restSec: newValue });
+                    }}
+                    min={0}
+                    max={300}
+                    step={5}
+                    className="flex-1"
+                  />
+                  <span className="text-xs text-muted-foreground w-8 text-right">5m</span>
+                  <Input
+                    type="number"
+                    value={restSec}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      const clampedVal = Math.max(0, Math.min(600, val));
+                      setRestSec(clampedVal);
+                      updateExerciseImmediately({ restSec: clampedVal });
+                    }}
+                    className="w-20 h-9 text-center"
+                    min={0}
+                    max={600}
+                    placeholder="sec"
+                  />
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                Press lap button when ready to continue to next exercise
+              </p>
+            )}
           </div>
 
           {/* Notes */}

@@ -10,12 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription } from './ui/alert';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { WorkoutStructure, Exercise, Block, Superset } from '../types/workout';
+import { WorkoutStructure, Exercise, Block, Superset, RestType } from '../types/workout';
 import { DeviceId, getDevicesByIds, getDeviceById, Device, getPrimaryExportDestinations } from '../lib/devices';
 import { ExerciseSearch } from './ExerciseSearch';
 import { Badge } from './ui/badge';
 import { addIdsToWorkout, generateId, getStructureDisplayName } from '../lib/workout-utils';
 import { EditExerciseDialog } from './EditExerciseDialog';
+import { EditBlockDialog } from './EditBlockDialog';
 
 // ============================================================================
 // Immutable helpers for Workout cloning (Industry-standard: avoid JSON.parse(JSON.stringify))
@@ -129,7 +130,12 @@ function DraggableExercise({
     }
     if (exercise.distance_m) parts.push(`${exercise.distance_m}m`);
     if (exercise.distance_range) parts.push(`${exercise.distance_range}`);
-    if (exercise.rest_sec) parts.push(`Rest: ${exercise.rest_sec}s`);
+    // Show rest info: "Lap Button" for button type, "Xs" for timed (only if > 0)
+    if (exercise.rest_type === 'button') {
+      parts.push(`Rest: Lap Button`);
+    } else if (exercise.rest_sec && exercise.rest_sec > 0) {
+      parts.push(`Rest: ${exercise.rest_sec}s`);
+    }
     return parts.length > 0 ? parts.join(' • ') : null;
   };
 
@@ -247,6 +253,7 @@ function DraggableBlock({
   onAddSuperset,
   onDeleteSuperset,
   onUpdateBlock,
+  onEditBlock,
   collapseSignal,
 }: {
   block: Block;
@@ -261,6 +268,7 @@ function DraggableBlock({
   onDeleteSuperset: (supersetIdx: number) => void;
   onExerciseDrop: (item: DraggableExerciseData, targetIdx: number, targetSupersetIdx?: number) => void;
   onUpdateBlock: (updates: Partial<Block>) => void;
+  onEditBlock: () => void;
   collapseSignal?: { action: 'collapse' | 'expand'; timestamp: number };
 }) {
   const [{ isDragging }, drag, dragPreview] = useDrag(() => ({
@@ -285,16 +293,7 @@ function DraggableBlock({
     }),
   }));
 
-  const [editingLabel, setEditingLabel] = useState(false);
-  const [tempLabel, setTempLabel] = useState(block.label);
   const [isCollapsed, setIsCollapsed] = useState(true);
-
-  // Sync tempLabel when block.label changes (but not when editing)
-  useEffect(() => {
-    if (!editingLabel) {
-      setTempLabel(block.label);
-    }
-  }, [block.label, editingLabel]);
 
   // React to collapse/expand all signal
   useEffect(() => {
@@ -306,11 +305,6 @@ function DraggableBlock({
       }
     }
   }, [collapseSignal]);
-
-  const saveLabel = () => {
-    onUpdateBlock({ label: tempLabel });
-    setEditingLabel(false);
-  };
 
   // Count total exercises in block (including supersets)
   const blockExercises = block.exercises?.length || 0;
@@ -379,34 +373,17 @@ function DraggableBlock({
                   <ChevronUp className="w-5 h-5 text-muted-foreground" />
                 )}
               </Button>
-              {editingLabel ? (
-                <div className="flex items-center gap-2 flex-1">
-                  <Input
-                    value={tempLabel}
-                    onChange={(e) => setTempLabel(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && saveLabel()}
-                    className="max-w-md"
-                  />
-                  <Button size="sm" onClick={saveLabel}>
-                    <Check className="w-4 h-4" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditingLabel(false)}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 flex-1">
-                  <CardTitle className="text-lg">{block.label}</CardTitle>
-                  <Button size="sm" variant="ghost" onClick={() => setEditingLabel(true)}>
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
-                  {isCollapsed && (
-                    <Badge variant="secondary" className="text-xs">
-                      {totalExerciseCount} exercise{totalExerciseCount !== 1 ? 's' : ''}
-                    </Badge>
-                  )}
-                </div>
-              )}
+              <div className="flex items-center gap-2 flex-1">
+                <CardTitle className="text-lg">{block.label}</CardTitle>
+                <Button size="sm" variant="ghost" onClick={onEditBlock} title="Edit Block">
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+                {isCollapsed && (
+                  <Badge variant="secondary" className="text-xs">
+                    {totalExerciseCount} exercise{totalExerciseCount !== 1 ? 's' : ''}
+                  </Badge>
+                )}
+              </div>
               {block.structure && (
                 <Badge variant="outline">{getStructureDisplayName(block.structure)}</Badge>
               )}
@@ -680,6 +657,7 @@ export function StructureWorkout({
     }
   }, [workoutWithIds.title, editingTitle]);
   const [editingExercise, setEditingExercise] = useState<{ blockIdx: number; exerciseIdx: number; supersetIdx?: number } | null>(null);
+  const [editingBlockIdx, setEditingBlockIdx] = useState<number | null>(null);
   const [showExerciseSearch, setShowExerciseSearch] = useState(false);
   const [addingToBlock, setAddingToBlock] = useState<number | null>(null);
   const [addingToSuperset, setAddingToSuperset] = useState<{ blockIdx: number; supersetIdx: number } | null>(null);
@@ -1240,6 +1218,7 @@ export function StructureWorkout({
                   onAddSuperset={() => addSuperset(blockIdx)}
                   onDeleteSuperset={(supersetIdx) => deleteSuperset(blockIdx, supersetIdx)}
                   onUpdateBlock={(updates) => updateBlock(blockIdx, updates)}
+                  onEditBlock={() => setEditingBlockIdx(blockIdx)}
                   collapseSignal={collapseSignal}
                 />
               ))
@@ -1292,6 +1271,62 @@ export function StructureWorkout({
             />
           );
         })()}
+
+        {/* Edit Block Dialog */}
+        {editingBlockIdx !== null && (
+          <EditBlockDialog
+            open={editingBlockIdx !== null}
+            block={workoutWithIds.blocks[editingBlockIdx]}
+            onSave={(updates) => {
+              const newWorkout = cloneWorkout(workoutWithIds);
+              const block = newWorkout.blocks[editingBlockIdx];
+
+              // Update block label
+              if (updates.label !== undefined) {
+                block.label = updates.label;
+              }
+
+              // Apply rest settings to all exercises in the block
+              if (updates.restType !== undefined || updates.restSec !== undefined) {
+                // Update block-level exercises
+                if (block.exercises) {
+                  block.exercises.forEach(ex => {
+                    if (ex) {
+                      if (updates.restType !== undefined) {
+                        ex.rest_type = updates.restType;
+                      }
+                      if (updates.restSec !== undefined) {
+                        ex.rest_sec = updates.restSec;
+                      }
+                    }
+                  });
+                }
+
+                // Update superset exercises
+                if (block.supersets) {
+                  block.supersets.forEach(ss => {
+                    if (ss.exercises) {
+                      ss.exercises.forEach(ex => {
+                        if (ex) {
+                          if (updates.restType !== undefined) {
+                            ex.rest_type = updates.restType;
+                          }
+                          if (updates.restSec !== undefined) {
+                            ex.rest_sec = updates.restSec;
+                          }
+                        }
+                      });
+                    }
+                  });
+                }
+              }
+
+              onWorkoutChange(newWorkout);
+              setEditingBlockIdx(null);
+            }}
+            onClose={() => setEditingBlockIdx(null)}
+          />
+        )}
 
         {/* Debug JSON Dialog */}
         {showDebugJson && (

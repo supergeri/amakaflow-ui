@@ -136,22 +136,95 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
     }
   };
 
+  // Fetch fresh YAML from mapper API and copy to clipboard
+  const copyYaml = async () => {
+    if (!workout) {
+      toast.error('No workout data');
+      return;
+    }
+
+    try {
+      const MAPPER_API_BASE_URL = import.meta.env.VITE_MAPPER_API_URL || 'http://localhost:8001';
+      const mappedWorkout = applyValidationMappings(workout, validation);
+
+      const res = await fetch(`${MAPPER_API_BASE_URL}/map/auto-map`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blocks_json: mappedWorkout }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to generate YAML: ${res.status}`);
+      }
+
+      const data = await res.json();
+      const yaml = data.yaml || '';
+      await navigator.clipboard.writeText(yaml);
+      setCopiedFormat('YAML');
+      toast.success('YAML copied to clipboard');
+      setTimeout(() => setCopiedFormat(null), 2000);
+    } catch (err: any) {
+      console.error('copyYaml failed:', err);
+      toast.error(`Failed to copy YAML: ${err.message}`);
+    }
+  };
+
   const copyDebugJson = async () => {
     if (!workout) {
       toast.error('No workout data to copy');
+      console.warn('copyDebugJson: workout is null/undefined');
       return;
     }
+
+    // Include more debug info
     const mappedWorkout = applyValidationMappings(workout, validation);
     const debugData = {
       original_workout: workout,
       mapped_workout: mappedWorkout,
-      validation: validation,
+      validation: validation || null,
+      exports: exports,
+      fit_metadata: fitMetadata || null,
+      selectedDevice: selectedDevice,
+      timestamp: new Date().toISOString(),
     };
+
+    let jsonStr: string;
     try {
-      await navigator.clipboard.writeText(JSON.stringify(debugData, null, 2));
-      toast.success('Debug JSON copied to clipboard');
+      jsonStr = JSON.stringify(debugData, null, 2);
     } catch (err) {
-      toast.error('Failed to copy debug JSON');
+      console.error('copyDebugJson: Failed to stringify:', err);
+      toast.error('Failed to serialize debug data');
+      return;
+    }
+
+    console.log('copyDebugJson: Copying', jsonStr.length, 'bytes');
+
+    // Try clipboard API first
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(jsonStr);
+        toast.success(`Debug JSON copied (${Math.round(jsonStr.length / 1024)}KB)`);
+        return;
+      }
+    } catch (err) {
+      console.warn('copyDebugJson: Clipboard API failed:', err);
+    }
+
+    // Fallback: download as file
+    try {
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `workout-debug-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Debug JSON downloaded (clipboard not available)');
+    } catch (err) {
+      console.error('copyDebugJson: Download fallback failed:', err);
+      toast.error('Failed to copy or download debug JSON');
     }
   };
 
@@ -809,28 +882,22 @@ export function PublishExport({ exports, validation, sources, onStartNew, select
           )}
 
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => copyToClipboard(deviceExport.content, deviceExport.format.toLowerCase())}
-              className="flex-1"
-            >
-              {copiedFormat === deviceExport.format.toLowerCase() ? (
-                <Check className="w-4 h-4 mr-2" />
-              ) : (
-                <Copy className="w-4 h-4 mr-2" />
-              )}
-              Copy {deviceExport.format}
-            </Button>
             {workout && (
               <FitPreviewModal workout={workout} validation={validation} />
             )}
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={copyDebugJson}
-              title="Copy debug JSON (workout + validation)"
+              variant="outline"
+              onClick={copyYaml}
             >
-              <Copy className="w-4 h-4" />
+              <Copy className="w-4 h-4 mr-2" />
+              {copiedFormat === 'YAML' ? 'Copied!' : 'Copy YAML'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={copyDebugJson}
+            >
+              <Copy className="w-4 h-4 mr-2" />
+              Copy JSON
             </Button>
             <Button
               variant="outline"
