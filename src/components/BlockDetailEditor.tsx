@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Block, Exercise, WorkoutStructureType } from '../types/workout';
+import { Block, Exercise, WorkoutStructureType, RestType } from '../types/workout';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { ScrollArea } from './ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Edit2, Trash2, Plus, GripVertical, Video, ExternalLink, Save, RotateCcw, ChevronDown, Layers, Timer, Repeat, Zap, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import {
@@ -404,7 +405,7 @@ export function BlockDetailEditor({
         )}
 
         {(block.structure === 'superset' || block.structure === 'circuit' || block.structure === 'rounds') && (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <div>
               <Label>Rounds</Label>
               <Input
@@ -421,11 +422,26 @@ export function BlockDetailEditor({
                 onChange={(e) => onBlockUpdate({ ...block, rest_between_rounds_sec: e.target.value ? parseInt(e.target.value) : null })}
               />
             </div>
+            <div>
+              <Label>Rest Type</Label>
+              <Select
+                value={block.rest_type || 'timed'}
+                onValueChange={(value: RestType) => onBlockUpdate({ ...block, rest_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="timed">Timed (countdown)</SelectItem>
+                  <SelectItem value="button">Lap Button</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         )}
 
         {block.structure === 'sets' && (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <div>
               <Label>Sets</Label>
               <Input
@@ -441,6 +457,21 @@ export function BlockDetailEditor({
                 value={block.rest_between_sets_sec || ''}
                 onChange={(e) => onBlockUpdate({ ...block, rest_between_sets_sec: e.target.value ? parseInt(e.target.value) : null })}
               />
+            </div>
+            <div>
+              <Label>Rest Type</Label>
+              <Select
+                value={block.rest_type || 'timed'}
+                onValueChange={(value: RestType) => onBlockUpdate({ ...block, rest_type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="timed">Timed</SelectItem>
+                  <SelectItem value="button">Lap Button</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         )}
@@ -543,6 +574,21 @@ export function BlockDetailEditor({
                       type="number"
                       className="mt-1"
                     />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="exercise-rest-type">Rest Type</Label>
+                    <Select
+                      value={editedExerciseData.rest_type || 'timed'}
+                      onValueChange={(value: RestType) => setEditedExerciseData({ ...editedExerciseData, rest_type: value })}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="timed">Timed</SelectItem>
+                        <SelectItem value="button">Lap Button</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 
