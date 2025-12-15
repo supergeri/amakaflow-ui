@@ -191,6 +191,13 @@ export function EditExerciseDialog({ open, exercise, onSave, onClose }: EditExer
       updates.warmup_reps = null;
     }
 
+    // DEBUG: Log warmup data being saved
+    console.log('[EditExerciseDialog] Saving updates:', {
+      warmup_sets: updates.warmup_sets,
+      warmup_reps: updates.warmup_reps,
+      exerciseType: currentExerciseType,
+      warmupEnabled: currentWarmupEnabled,
+    });
     onSave(updates);
   }, [exercise, exerciseType, name, sets, reps, repsRange, durationSec, distanceM, distanceRange, restSec, restType, notes, warmupEnabled, warmupSets, warmupReps, onSave]);
 
