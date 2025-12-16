@@ -152,6 +152,14 @@ export async function saveWorkoutToHistory(
     throw new Error('Workout and device are required when providing profileId');
   }
 
+  // DEBUG: Log workout exercises to trace warmup_sets persistence (AMA-94)
+  console.log('[saveWorkoutToHistory] Saving workout exercises:',
+    workout.blocks?.map(b => b.exercises?.map(e => ({
+      name: e?.name,
+      warmup_sets: e?.warmup_sets,
+      warmup_reps: e?.warmup_reps
+    }))));
+
   try {
     const { saveWorkoutToAPI } = await import('./workout-api');
     const saved = await saveWorkoutToAPI({

@@ -12,6 +12,14 @@ const API_TIMEOUT = 120000;
  * This function is exported for use when loading workouts from history
  */
 export function normalizeWorkoutStructure(workout: WorkoutStructure): WorkoutStructure {
+  // DEBUG: Log incoming workout to trace warmup_sets persistence (AMA-94)
+  console.log('[normalizeWorkoutStructure] Input workout exercises:',
+    workout.blocks?.map(b => b.exercises?.map(e => ({
+      name: e?.name,
+      warmup_sets: e?.warmup_sets,
+      warmup_reps: e?.warmup_reps
+    }))));
+
   if (!workout.blocks || workout.blocks.length === 0) {
     return {
       ...workout,
