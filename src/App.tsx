@@ -3,7 +3,7 @@ import { Toaster, toast } from 'sonner@2.0.3';
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react';
 import { Badge } from './components/ui/badge';
 import { Button } from './components/ui/button';
-import { Dumbbell, Settings, ChevronRight, ChevronDown, ArrowLeft, BarChart3, Users, Activity, CalendarDays, Upload, FileText } from 'lucide-react';
+import { Dumbbell, Settings, ChevronRight, ChevronDown, ArrowLeft, BarChart3, Users, Activity, CalendarDays, Upload, Link, Image, FileSpreadsheet } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +41,7 @@ import { saveWorkoutToHistory, getWorkoutHistory, getWorkoutHistoryFromLocalStor
 import { useClerkUser, getUserProfileFromClerk, syncClerkUserToProfile } from './lib/clerk-auth';
 import { User } from './types/auth';
 import { isAccountConnectedSync, isAccountConnected } from './lib/linked-accounts';
+import type { BulkInputType } from './types/bulk-import';
 
 type AppUser = User & {
   avatar?: string;
@@ -75,6 +76,7 @@ export default function App() {
   const [isCreatingFromScratch, setIsCreatingFromScratch] = useState(false);
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   const [workoutSaved, setWorkoutSaved] = useState(false);
+  const [bulkImportType, setBulkImportType] = useState<BulkInputType | undefined>(undefined);
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     title: string;
@@ -360,6 +362,29 @@ export default function App() {
     };
     loadHistory();
   }, [user]);
+
+  // Keyboard shortcuts for import
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + I = Open bulk import (file mode)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'i' && !e.shiftKey) {
+        e.preventDefault();
+        clearWorkflowState();
+        setBulkImportType('file');
+        setCurrentView('bulk-import');
+      }
+      // Cmd/Ctrl + Shift + I = Open bulk import (URLs mode)
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'I') {
+        e.preventDefault();
+        clearWorkflowState();
+        setBulkImportType('urls');
+        setCurrentView('bulk-import');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleStartNew = () => {
     setSources([]);
@@ -1139,19 +1164,48 @@ export default function App() {
                         });
                       }}
                     >
-                      <FileText className="w-4 h-4 mr-2" />
-                      Single Import
+                      <Link className="w-4 h-4 mr-2" />
+                      From URL
+                      <span className="ml-auto text-xs text-muted-foreground">Single</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => {
                         checkUnsavedChanges(() => {
                           clearWorkflowState();
+                          setBulkImportType('file');
+                          setCurrentView('bulk-import');
+                        });
+                      }}
+                    >
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      From File
+                      <span className="ml-auto text-xs text-muted-foreground">Excel, CSV</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        checkUnsavedChanges(() => {
+                          clearWorkflowState();
+                          setBulkImportType('urls');
                           setCurrentView('bulk-import');
                         });
                       }}
                     >
                       <Upload className="w-4 h-4 mr-2" />
-                      Bulk Import
+                      Bulk URLs
+                      <span className="ml-auto text-xs text-muted-foreground">Multiple</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        checkUnsavedChanges(() => {
+                          clearWorkflowState();
+                          setBulkImportType('images');
+                          setCurrentView('bulk-import');
+                        });
+                      }}
+                    >
+                      <Image className="w-4 h-4 mr-2" />
+                      From Images
+                      <span className="ml-auto text-xs text-muted-foreground">OCR</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -1589,7 +1643,15 @@ export default function App() {
         {currentView === 'bulk-import' && (
           <BulkImport
             userId={user.id}
-            onBack={() => setCurrentView('workouts')}
+            onBack={() => {
+              setBulkImportType(undefined);
+              setCurrentView('workouts');
+            }}
+            initialInputType={bulkImportType}
+            onViewCalendar={() => {
+              setBulkImportType(undefined);
+              setCurrentView('calendar');
+            }}
           />
         )}
       </div>

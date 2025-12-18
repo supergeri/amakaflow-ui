@@ -5,13 +5,14 @@
  * Orchestrates the 5-step flow: Detect -> Map -> Match -> Preview -> Import
  */
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { BulkImportProvider, useBulkImport } from '../../context/BulkImportContext';
 import { useBulkImportApi } from '../../hooks/useBulkImportApi';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { ArrowLeft, ArrowRight, X } from 'lucide-react';
 import { cn } from '../ui/utils';
+import type { BulkInputType } from '../../types/bulk-import';
 
 // Step Components
 import { StepProgressBar } from './StepProgressBar';
@@ -26,6 +27,8 @@ interface BulkImportProps {
   onBack?: () => void;
   onViewCalendar?: () => void;
   onViewPrograms?: () => void;
+  /** Initial input type to start with (file, urls, or images) */
+  initialInputType?: BulkInputType;
 }
 
 /**
@@ -62,9 +65,17 @@ function BulkImportContent({
   onBack,
   onViewCalendar,
   onViewPrograms,
+  initialInputType,
 }: BulkImportProps) {
-  const { state, goNext, goBack, canGoNext, canGoBack, reset } = useBulkImport();
+  const { state, goNext, goBack, canGoNext, canGoBack, reset, setInputType } = useBulkImport();
   const { executeImport } = useBulkImportApi({ userId });
+
+  // Set initial input type on mount
+  useEffect(() => {
+    if (initialInputType) {
+      setInputType(initialInputType);
+    }
+  }, [initialInputType, setInputType]);
 
   const stepInfo = stepDescriptions[state.step];
   const isImportStep = state.step === 'import';
