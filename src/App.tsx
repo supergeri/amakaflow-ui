@@ -18,6 +18,7 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { Calendar } from './components/Calendar';
 import { UnifiedWorkouts } from './components/UnifiedWorkouts';
 import { MobileCompanion } from './components/MobileCompanion';
+import { BulkImport } from './components/BulkImport';
 import BuildBadge from './components/BuildBadge';
 import { DevSystemStatus } from './components/DevSystemStatus';
 import { WorkoutStructure, ExportFormats, ValidationResponse } from './types/workout';
@@ -41,7 +42,7 @@ type AppUser = User & {
 };
 
 type WorkflowStep = 'add-sources' | 'structure' | 'validate' | 'export';
-type View = 'home' | 'workflow' | 'profile' | 'analytics' | 'team' | 'settings' | 'strava-enhance' | 'calendar' | 'workouts' | 'mobile-companion';
+type View = 'home' | 'workflow' | 'profile' | 'analytics' | 'team' | 'settings' | 'strava-enhance' | 'calendar' | 'workouts' | 'mobile-companion' | 'bulk-import';
 
 export default function App() {
   // Clerk authentication
@@ -1552,6 +1553,13 @@ export default function App() {
           <MobileCompanion
             userId={user.id}
             onBack={() => setCurrentView('settings')}
+          />
+        )}
+
+        {currentView === 'bulk-import' && (
+          <BulkImport
+            userId={user.id}
+            onBack={() => setCurrentView('workouts')}
           />
         )}
       </div>
