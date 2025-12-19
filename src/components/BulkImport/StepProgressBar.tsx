@@ -2,11 +2,10 @@
  * StepProgressBar Component
  *
  * Visual progress indicator for the bulk import workflow.
- * Matches the Create Workout stepper style:
- * (1) Add Sources > (2) Match > (3) Preview > (4) Import
+ * Matches the Create Workout stepper style exactly.
  */
 
-import { CheckCircle, ChevronRight } from 'lucide-react';
+import { Check, ChevronRight } from 'lucide-react';
 import { useBulkImport } from '../../context/BulkImportContext';
 import { BulkImportStep } from '../../types/bulk-import';
 import { cn } from '../ui/utils';
@@ -28,7 +27,6 @@ export function StepProgressBar({ className }: StepProgressBarProps) {
   const currentIndex = state.activeSteps.indexOf(state.step);
 
   const handleStepClick = (step: BulkImportStep, index: number) => {
-    // Only allow clicking on completed steps (going back)
     if (index < currentIndex) {
       goToStep(step);
     }
@@ -39,56 +37,57 @@ export function StepProgressBar({ className }: StepProgressBarProps) {
       {state.activeSteps.map((step, index) => {
         const isActive = step === state.step;
         const isCompleted = index < currentIndex;
+        const isPending = index > currentIndex;
         const isClickable = index < currentIndex;
         const config = stepConfig[step];
 
         return (
           <div key={step} className="flex items-center">
-            {/* Step: Number + Label inline */}
+            {/* Step button with circle and label */}
             <button
               onClick={() => handleStepClick(step, index)}
               disabled={!isClickable}
               className={cn(
-                'flex items-center gap-2 px-2 py-1 rounded-lg transition-all',
-                isClickable && 'cursor-pointer hover:bg-muted/50',
+                'flex items-center gap-2 transition-all',
+                isClickable && 'cursor-pointer hover:opacity-80',
                 !isClickable && 'cursor-default'
               )}
             >
-              {/* Numbered Circle */}
-              <div
+              {/* Circle with number */}
+              <span
                 className={cn(
-                  'flex items-center justify-center w-7 h-7 rounded-full text-sm font-semibold transition-all',
-                  isActive && 'bg-foreground text-background',
+                  'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold',
+                  isActive && 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900',
                   isCompleted && 'bg-emerald-500 text-white',
-                  !isActive && !isCompleted && 'bg-muted text-muted-foreground'
+                  isPending && 'bg-zinc-200 text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400'
                 )}
               >
                 {isCompleted ? (
-                  <CheckCircle className="w-4 h-4" />
+                  <Check className="w-3.5 h-3.5" strokeWidth={3} />
                 ) : (
-                  <span>{index + 1}</span>
+                  index + 1
                 )}
-              </div>
+              </span>
 
-              {/* Label - inline next to number */}
+              {/* Label */}
               <span
                 className={cn(
-                  'text-sm font-medium transition-colors whitespace-nowrap',
-                  isActive && 'text-foreground',
-                  isCompleted && 'text-emerald-600',
-                  !isActive && !isCompleted && 'text-muted-foreground'
+                  'text-sm font-medium',
+                  isActive && 'text-zinc-900 dark:text-zinc-100',
+                  isCompleted && 'text-emerald-600 dark:text-emerald-500',
+                  isPending && 'text-zinc-400 dark:text-zinc-500'
                 )}
               >
                 {config.label}
               </span>
             </button>
 
-            {/* Chevron Connector */}
+            {/* Chevron */}
             {index < state.activeSteps.length - 1 && (
               <ChevronRight
                 className={cn(
-                  'w-5 h-5 mx-1 flex-shrink-0',
-                  index < currentIndex ? 'text-emerald-500' : 'text-muted-foreground/40'
+                  'w-4 h-4 mx-3 flex-shrink-0',
+                  index < currentIndex ? 'text-emerald-500' : 'text-zinc-300 dark:text-zinc-600'
                 )}
               />
             )}
