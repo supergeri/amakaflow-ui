@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
-import { Clock, Dumbbell, Watch, Bike, Download, Activity, CheckCircle2, ExternalLink, Eye, Trash2, ChevronRight, Edit, List, Search, BarChart3, FileText, Layers, Play, X, Video, Link2 } from 'lucide-react';
+import { Clock, Dumbbell, Watch, Bike, Download, Activity, CheckCircle2, ExternalLink, Eye, Trash2, ChevronRight, Edit, List, Search, BarChart3, FileText, Layers, Play, X, Video, Link2, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { WorkoutHistoryItem } from '../lib/workout-history';
 import { isAccountConnectedSync } from '../lib/linked-accounts';
 import { DeviceId, getDeviceById } from '../lib/devices';
@@ -25,10 +25,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from './ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { FollowAlongUrlEditor } from './FollowAlongUrlEditor';
+import { exportAndDownload, CsvStyle, ExportFormat } from '../lib/export-api';
 
 type Props = {
   history: WorkoutHistoryItem[];
@@ -212,14 +221,14 @@ export function WorkoutHistory({ history, onLoadWorkout, onEditWorkout, onUpdate
     return match?.mapped_to || originalName;
   };
 
-  // Helper to download export file
-  const handleExport = (item: WorkoutHistoryItem) => {
+  // Helper to download pre-generated export file (FIT, plist, ZWO)
+  const handleExportPregenerated = (item: WorkoutHistoryItem) => {
     if (!item.exports) return;
-    
-    const format = item.device === 'garmin' ? item.exports?.fit 
-      : item.device === 'apple' ? item.exports?.plist 
+
+    const format = item.device === 'garmin' ? item.exports?.fit
+      : item.device === 'apple' ? item.exports?.plist
       : item.exports?.zwo;
-    
+
     if (format) {
       const blob = new Blob([format], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
@@ -230,6 +239,24 @@ export function WorkoutHistory({ history, onLoadWorkout, onEditWorkout, onUpdate
       }`;
       a.click();
       URL.revokeObjectURL(url);
+    }
+  };
+
+  // Export to CSV format via API
+  const handleCsvExport = async (item: WorkoutHistoryItem, style: CsvStyle) => {
+    try {
+      await exportAndDownload(item.workout, 'csv', { csvStyle: style });
+    } catch (error) {
+      console.error('CSV export failed:', error);
+    }
+  };
+
+  // Export to other formats via API (FIT, TCX, Text)
+  const handleApiExport = async (item: WorkoutHistoryItem, format: ExportFormat) => {
+    try {
+      await exportAndDownload(item.workout, format);
+    } catch (error) {
+      console.error(`${format.toUpperCase()} export failed:`, error);
     }
   };
 
@@ -590,17 +617,49 @@ export function WorkoutHistory({ history, onLoadWorkout, onEditWorkout, onUpdate
                     >
                       <ChevronRight className="w-4 h-4" />
                     </Button>
-                    {item.exports && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleExport(item)}
-                        className="h-8 w-8 p-0"
-                        title="Export"
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          title="Export"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleCsvExport(item, 'strong')}>
+                          <FileSpreadsheet className="w-4 h-4 mr-2" />
+                          CSV (Strong/Hevy)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleCsvExport(item, 'extended')}>
+                          <FileSpreadsheet className="w-4 h-4 mr-2" />
+                          CSV (Extended)
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        {item.exports && (
+                          <DropdownMenuItem onClick={() => handleExportPregenerated(item)}>
+                            <Download className="w-4 h-4 mr-2" />
+                            {item.device === 'garmin' ? 'FIT File' : item.device === 'apple' ? 'Apple Workout' : 'ZWO File'}
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => handleApiExport(item, 'fit')}>
+                          <Activity className="w-4 h-4 mr-2" />
+                          FIT (Garmin)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleApiExport(item, 'tcx')}>
+                          <FileText className="w-4 h-4 mr-2" />
+                          TCX
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleApiExport(item, 'text')}>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Text (TrainingPeaks)
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -702,17 +761,50 @@ export function WorkoutHistory({ history, onLoadWorkout, onEditWorkout, onUpdate
                       >
                         Load
                       </Button>
-                      {item.exports && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleExport(item)}
-                          className="gap-2 h-9 font-medium"
-                        >
-                          <Download className="w-4 h-4" />
-                          Export
-                        </Button>
-                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-2 h-9 font-medium"
+                          >
+                            <Download className="w-4 h-4" />
+                            Export
+                            <ChevronDown className="w-3 h-3 ml-1" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleCsvExport(item, 'strong')}>
+                            <FileSpreadsheet className="w-4 h-4 mr-2" />
+                            CSV (Strong/Hevy compatible)
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleCsvExport(item, 'extended')}>
+                            <FileSpreadsheet className="w-4 h-4 mr-2" />
+                            CSV (Extended for spreadsheets)
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {item.exports && (
+                            <DropdownMenuItem onClick={() => handleExportPregenerated(item)}>
+                              <Download className="w-4 h-4 mr-2" />
+                              {item.device === 'garmin' ? 'FIT File (pre-generated)' : item.device === 'apple' ? 'Apple Workout' : 'ZWO File'}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => handleApiExport(item, 'fit')}>
+                            <Activity className="w-4 h-4 mr-2" />
+                            FIT (Garmin)
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleApiExport(item, 'tcx')}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            TCX
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleApiExport(item, 'text')}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Text (TrainingPeaks)
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     <Button
                       size="sm"
