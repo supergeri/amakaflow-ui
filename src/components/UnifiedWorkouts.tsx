@@ -16,6 +16,7 @@ import {
   Eye,
   Trash2,
   ChevronRight,
+  ChevronDown,
   Edit,
   List,
   LayoutGrid,
@@ -25,6 +26,9 @@ import {
   ExternalLink,
   Loader2,
   AlertCircle,
+  FileSpreadsheet,
+  FileText,
+  Activity,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -40,6 +44,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from './ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+import { exportAndDownload, CsvStyle, ExportFormat } from '../lib/export-api';
 
 import type { UnifiedWorkout } from '../types/unified-workout';
 import type { WorkoutFilters } from '../lib/workout-filters';
@@ -452,6 +465,70 @@ export function UnifiedWorkouts({
     }
   };
 
+  // Export to CSV format via API
+  const handleCsvExport = async (workout: UnifiedWorkout, style: CsvStyle) => {
+    try {
+      if (isHistoryWorkout(workout)) {
+        await exportAndDownload(workout._original.data.workout, 'csv', { csvStyle: style });
+      } else if (isFollowAlongWorkout(workout)) {
+        // Convert follow-along to exportable format
+        const followAlong = workout._original.data as FollowAlongWorkout;
+        const workoutData = {
+          title: followAlong.title,
+          source: followAlong.source,
+          blocks: [
+            {
+              label: 'Follow Along',
+              structure: 'regular',
+              exercises: followAlong.steps.map((step) => ({
+                name: step.label,
+                sets: 1,
+                reps: step.targetReps || null,
+                duration_sec: step.durationSec || null,
+              })),
+              supersets: [],
+            },
+          ],
+        };
+        await exportAndDownload(workoutData, 'csv', { csvStyle: style });
+      }
+    } catch (error) {
+      console.error('CSV export failed:', error);
+    }
+  };
+
+  // Export to other formats via API (FIT, TCX, Text)
+  const handleApiExport = async (workout: UnifiedWorkout, format: ExportFormat) => {
+    try {
+      if (isHistoryWorkout(workout)) {
+        await exportAndDownload(workout._original.data.workout, format);
+      } else if (isFollowAlongWorkout(workout)) {
+        // Convert follow-along to exportable format
+        const followAlong = workout._original.data as FollowAlongWorkout;
+        const workoutData = {
+          title: followAlong.title,
+          source: followAlong.source,
+          blocks: [
+            {
+              label: 'Follow Along',
+              structure: 'regular',
+              exercises: followAlong.steps.map((step) => ({
+                name: step.label,
+                sets: 1,
+                reps: step.targetReps || null,
+                duration_sec: step.durationSec || null,
+              })),
+              supersets: [],
+            },
+          ],
+        };
+        await exportAndDownload(workoutData, format);
+      }
+    } catch (error) {
+      console.error(`${format.toUpperCase()} export failed:`, error);
+    }
+  };
+
   // Render loading state
   if (isLoading) {
     return (
@@ -761,6 +838,43 @@ export function UnifiedWorkouts({
                         <ExternalLink className="w-4 h-4" />
                       </Button>
                     )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          title="Export"
+                        >
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleCsvExport(workout, 'strong')}>
+                          <FileSpreadsheet className="w-4 h-4 mr-2" />
+                          CSV (Strong/Hevy)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleCsvExport(workout, 'extended')}>
+                          <FileSpreadsheet className="w-4 h-4 mr-2" />
+                          CSV (Extended)
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleApiExport(workout, 'fit')}>
+                          <Activity className="w-4 h-4 mr-2" />
+                          FIT (Garmin)
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleApiExport(workout, 'tcx')}>
+                          <FileText className="w-4 h-4 mr-2" />
+                          TCX
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleApiExport(workout, 'text')}>
+                          <FileText className="w-4 h-4 mr-2" />
+                          Text (TrainingPeaks)
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -889,6 +1003,44 @@ export function UnifiedWorkouts({
                           Open Video
                         </Button>
                       )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-2 h-9 font-medium"
+                          >
+                            <Download className="w-4 h-4" />
+                            Export
+                            <ChevronDown className="w-3 h-3 ml-1" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleCsvExport(workout, 'strong')}>
+                            <FileSpreadsheet className="w-4 h-4 mr-2" />
+                            CSV (Strong/Hevy compatible)
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleCsvExport(workout, 'extended')}>
+                            <FileSpreadsheet className="w-4 h-4 mr-2" />
+                            CSV (Extended for spreadsheets)
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleApiExport(workout, 'fit')}>
+                            <Activity className="w-4 h-4 mr-2" />
+                            FIT (Garmin)
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleApiExport(workout, 'tcx')}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            TCX
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleApiExport(workout, 'text')}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            Text (TrainingPeaks)
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     <Button
                       size="sm"
