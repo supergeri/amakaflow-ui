@@ -29,6 +29,7 @@ import {
   FileSpreadsheet,
   FileText,
   Activity,
+  Star,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -55,14 +56,17 @@ import {
 import { exportAndDownload, CsvStyle, ExportFormat } from '../lib/export-api';
 
 import type { UnifiedWorkout } from '../types/unified-workout';
-import type { WorkoutFilters } from '../lib/workout-filters';
+import type { WorkoutFilters, SortOption } from '../lib/workout-filters';
 import {
   DEFAULT_FILTERS,
   filterWorkouts,
   hasActiveFilters,
+  sortWorkouts,
+  SORT_OPTIONS,
 } from '../lib/workout-filters';
 import { fetchAllWorkouts } from '../lib/unified-workouts';
 import { deleteWorkoutFromHistory } from '../lib/workout-history';
+import { toggleWorkoutFavorite } from '../lib/workout-api';
 import { deleteFollowAlong } from '../lib/follow-along-api';
 import {
   isHistoryWorkout,
@@ -171,6 +175,7 @@ export function UnifiedWorkouts({
   const [platformFilter, setPlatformFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [syncFilter, setSyncFilter] = useState<'all' | 'synced' | 'not-synced'>('all');
+  const [sortOption, setSortOption] = useState<SortOption>('recently-added');
   const [pageIndex, setPageIndex] = useState(0);
   const PAGE_SIZE = 10;
 
@@ -279,8 +284,11 @@ export function UnifiedWorkouts({
       );
     }
 
+    // Apply sorting
+    filtered = sortWorkouts(filtered, sortOption);
+
     return filtered;
-  }, [allWorkouts, sourceFilter, platformFilter, categoryFilter, syncFilter, searchQuery]);
+  }, [allWorkouts, sourceFilter, platformFilter, categoryFilter, syncFilter, searchQuery, sortOption]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredWorkouts.length / PAGE_SIZE));
@@ -373,6 +381,35 @@ export function UnifiedWorkouts({
 
   const handleDeleteCancel = () => {
     setConfirmDeleteId(null);
+  };
+
+  // Favorite toggle handler
+  const handleFavoriteToggle = async (workout: UnifiedWorkout, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    const newFavoriteState = !workout.isFavorite;
+
+    // Optimistic update
+    setAllWorkouts((prev) =>
+      prev.map((w) =>
+        w.id === workout.id ? { ...w, isFavorite: newFavoriteState } : w
+      )
+    );
+
+    // Only call API for history workouts (follow-along favorites handled separately)
+    if (isHistoryWorkout(workout)) {
+      try {
+        await toggleWorkoutFavorite(workout.id, profileId, newFavoriteState);
+      } catch (err) {
+        console.error('[handleFavoriteToggle] Error:', err);
+        // Revert on error
+        setAllWorkouts((prev) =>
+          prev.map((w) =>
+            w.id === workout.id ? { ...w, isFavorite: !newFavoriteState } : w
+          )
+        );
+      }
+    }
   };
 
   // Edit handler - converts unified workout back to original type
@@ -709,7 +746,22 @@ export function UnifiedWorkouts({
             <option value="synced">Synced</option>
             <option value="not-synced">Not synced</option>
           </select>
-          {(sourceFilter !== 'all' || platformFilter !== 'all' || categoryFilter !== 'all' || syncFilter !== 'all' || searchQuery) && (
+          <div className="h-4 border-l mx-1" /> {/* Divider */}
+          <select
+            value={sortOption}
+            onChange={(e) => {
+              setSortOption(e.target.value as SortOption);
+              setPageIndex(0);
+            }}
+            className="h-8 rounded-md border px-2 text-sm bg-background"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          {(sourceFilter !== 'all' || platformFilter !== 'all' || categoryFilter !== 'all' || syncFilter !== 'all' || searchQuery || sortOption !== 'recently-added') && (
             <Button
               variant="ghost"
               size="sm"
@@ -719,6 +771,7 @@ export function UnifiedWorkouts({
                 setCategoryFilter('all');
                 setSyncFilter('all');
                 setSearchQuery('');
+                setSortOption('recently-added');
                 setPageIndex(0);
               }}
               className="h-8 text-xs text-muted-foreground"
@@ -798,6 +851,21 @@ export function UnifiedWorkouts({
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => handleFavoriteToggle(workout, e)}
+                      className="h-8 w-8 p-0"
+                      title={workout.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                      <Star
+                        className={`w-4 h-4 ${
+                          workout.isFavorite
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-muted-foreground hover:text-yellow-400'
+                        }`}
+                      />
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -964,6 +1032,21 @@ export function UnifiedWorkouts({
                 <CardContent className="px-4 pb-4 pt-0 border-t bg-muted/20">
                   <div className="flex items-center justify-between gap-3 pt-3">
                     <div className="flex items-center gap-2 flex-wrap">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => handleFavoriteToggle(workout, e)}
+                        className="h-9 w-9 p-0"
+                        title={workout.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                      >
+                        <Star
+                          className={`w-5 h-5 ${
+                            workout.isFavorite
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-muted-foreground hover:text-yellow-400'
+                          }`}
+                        />
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
