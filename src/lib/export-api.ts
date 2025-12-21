@@ -8,7 +8,7 @@
 const WORKOUT_INGESTOR_API_URL = import.meta.env.VITE_INGESTOR_API_URL || 'http://localhost:8004';
 
 export type CsvStyle = 'strong' | 'extended';
-export type ExportFormat = 'csv' | 'fit' | 'tcx' | 'text';
+export type ExportFormat = 'csv' | 'fit' | 'tcx' | 'text' | 'json' | 'pdf';
 
 export interface WorkoutExportData {
   title: string;
@@ -160,6 +160,107 @@ export async function exportWorkoutToText(workout: WorkoutExportData): Promise<B
 }
 
 /**
+ * Export a workout to JSON format
+ *
+ * @param workout - Workout data to export
+ * @param options - Export options
+ *   - includeMetadata: Include export metadata (timestamp, version)
+ *   - pretty: Pretty-print with indentation
+ * @returns Blob containing the JSON file
+ */
+export async function exportWorkoutToJson(
+  workout: WorkoutExportData,
+  options: {
+    includeMetadata?: boolean;
+    pretty?: boolean;
+  } = {}
+): Promise<Blob> {
+  const params = new URLSearchParams();
+  if (options.includeMetadata !== undefined) {
+    params.append('include_metadata', String(options.includeMetadata));
+  }
+  if (options.pretty !== undefined) {
+    params.append('pretty', String(options.pretty));
+  }
+  const queryString = params.toString();
+  const url = `${WORKOUT_INGESTOR_API_URL}/export/json${queryString ? `?${queryString}` : ''}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(workout),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(error.detail || `JSON export failed: ${response.statusText}`);
+  }
+
+  return response.blob();
+}
+
+/**
+ * Export a workout to PDF format
+ *
+ * @param workout - Workout data to export
+ * @returns Blob containing the PDF file
+ */
+export async function exportWorkoutToPdf(workout: WorkoutExportData): Promise<Blob> {
+  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/export/pdf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(workout),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(error.detail || `PDF export failed: ${response.statusText}`);
+  }
+
+  return response.blob();
+}
+
+/**
+ * Export multiple workouts as a ZIP archive
+ *
+ * @param workouts - Array of workout data to export
+ * @param options - Export options
+ *   - formats: List of formats to include (default: json, csv, text)
+ *   - csvStyle: CSV format style ('strong' or 'extended')
+ * @returns Blob containing the ZIP file
+ */
+export async function exportWorkoutsToZip(
+  workouts: WorkoutExportData[],
+  options: {
+    formats?: ExportFormat[];
+    csvStyle?: CsvStyle;
+  } = {}
+): Promise<Blob> {
+  const params = new URLSearchParams();
+  if (options.formats) {
+    options.formats.forEach(f => params.append('formats', f));
+  }
+  if (options.csvStyle) {
+    params.append('csv_style', options.csvStyle);
+  }
+  const queryString = params.toString();
+  const url = `${WORKOUT_INGESTOR_API_URL}/export/bulk/zip${queryString ? `?${queryString}` : ''}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(workouts),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: response.statusText }));
+    throw new Error(error.detail || `ZIP export failed: ${response.statusText}`);
+  }
+
+  return response.blob();
+}
+
+/**
  * Helper to download a blob as a file
  *
  * @param blob - File blob to download
@@ -180,7 +281,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
  * Export and download a workout in the specified format
  *
  * @param workout - Workout data to export
- * @param format - Export format ('csv', 'fit', 'tcx', 'text')
+ * @param format - Export format ('csv', 'fit', 'tcx', 'text', 'json', 'pdf')
  * @param options - Additional options
  *   - csvStyle: 'strong' or 'extended' (only for CSV format)
  *   - filename: Custom filename (without extension)
@@ -214,6 +315,14 @@ export async function exportAndDownload(
     case 'text':
       blob = await exportWorkoutToText(workout);
       extension = 'txt';
+      break;
+    case 'json':
+      blob = await exportWorkoutToJson(workout);
+      extension = 'json';
+      break;
+    case 'pdf':
+      blob = await exportWorkoutToPdf(workout);
+      extension = 'pdf';
       break;
     default:
       throw new Error(`Unsupported export format: ${format}`);

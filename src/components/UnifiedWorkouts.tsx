@@ -1120,6 +1120,15 @@ export function UnifiedWorkouts({
                           <FileText className="w-4 h-4 mr-2" />
                           Text (TrainingPeaks)
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleApiExport(workout, 'json')}>
+                          <FileText className="w-4 h-4 mr-2" />
+                          JSON
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleApiExport(workout, 'pdf')}>
+                          <FileText className="w-4 h-4 mr-2" />
+                          PDF
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                     <Button
@@ -1327,6 +1336,15 @@ export function UnifiedWorkouts({
                           <DropdownMenuItem onClick={() => handleApiExport(workout, 'text')}>
                             <FileText className="w-4 h-4 mr-2" />
                             Text (TrainingPeaks)
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleApiExport(workout, 'json')}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            JSON
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleApiExport(workout, 'pdf')}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            PDF
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
