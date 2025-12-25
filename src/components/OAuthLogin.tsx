@@ -1,6 +1,5 @@
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Dumbbell } from 'lucide-react';
 
 interface OAuthLoginProps {
   onLogin: (provider: 'google' | 'apple' | 'github', email: string) => void;
@@ -26,9 +25,11 @@ export function OAuthLogin({ onLogin }: OAuthLoginProps) {
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <Dumbbell className="w-6 h-6 text-primary-foreground" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="AmakaFlow"
+              className="w-10 h-10 rounded-lg object-contain"
+            />
             <CardTitle>AmakaFlow</CardTitle>
           </div>
           <p className="text-sm text-muted-foreground">
