@@ -1230,12 +1230,14 @@ export default function App() {
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                      <Dumbbell className="w-5 h-5 text-primary-foreground" />
-                    </div>
+                    <img
+                      src="/logo.png"
+                      alt="AmakaFlow"
+                      className="w-8 h-8 rounded-lg object-contain"
+                    />
                     <div>
                       <div className="flex items-center gap-2">
-                        <span>AmakaFlow</span>
+                        <span className="font-semibold">AmakaFlow</span>
                         <Badge variant="secondary" className="text-xs">
                           {user.subscription}
                         </Badge>
