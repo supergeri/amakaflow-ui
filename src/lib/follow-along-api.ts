@@ -1,4 +1,5 @@
 import { ENABLE_GARMIN_DEBUG } from './env';
+import { authenticatedFetch } from './authenticated-fetch';
 import type {
   FollowAlongWorkout,
   IngestFollowAlongRequest,
@@ -16,18 +17,18 @@ const MAPPER_API_BASE_URL = import.meta.env.VITE_MAPPER_API_URL || "http://local
 /**
  * Ingest a follow-along workout from Instagram URL
  * Uses mapper-api endpoint
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
 export async function ingestFollowAlong(
   instagramUrl: string,
-  userId: string
+  _userId?: string
 ): Promise<IngestFollowAlongResponse> {
 
-  const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along/ingest`, {
+  const response = await authenticatedFetch(`${MAPPER_API_BASE_URL}/follow-along/ingest`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       instagramUrl,
-      userId,
     }),
   });
 
@@ -56,23 +57,25 @@ export interface ManualWorkoutStep {
   notes?: string;
 }
 
+/**
+ * @deprecated userId parameter is no longer used - user is identified via JWT
+ */
 export async function createFollowAlongManual(params: {
   sourceUrl: string;
-  userId: string;
+  userId?: string;
   title: string;
   description?: string;
   steps: ManualWorkoutStep[];
   source?: VideoPlatform;
   thumbnailUrl?: string;
 }): Promise<IngestFollowAlongResponse> {
-  const { sourceUrl, userId, title, description, steps, source, thumbnailUrl } = params;
+  const { sourceUrl, title, description, steps, source, thumbnailUrl } = params;
 
-  const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along/create`, {
+  const response = await authenticatedFetch(`${MAPPER_API_BASE_URL}/follow-along/create`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       sourceUrl,
-      userId,
       title,
       description,
       steps: steps.map((s, i) => ({
@@ -104,10 +107,11 @@ export async function createFollowAlongManual(params: {
 /**
  * List all follow-along workouts for the current user
  * Uses mapper-api endpoint
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
-export async function listFollowAlong(userId: string): Promise<ListFollowAlongResponse> {
-  
-  const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along?userId=${userId}`);
+export async function listFollowAlong(_userId?: string): Promise<ListFollowAlongResponse> {
+
+  const response = await authenticatedFetch(`${MAPPER_API_BASE_URL}/follow-along`);
   
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
@@ -160,10 +164,11 @@ export async function listFollowAlong(userId: string): Promise<ListFollowAlongRe
 /**
  * Get a single follow-along workout by ID
  * Uses mapper-api endpoint
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
-export async function getFollowAlong(id: string, userId: string): Promise<GetFollowAlongResponse> {
-  
-  const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along/${id}?userId=${userId}`);
+export async function getFollowAlong(id: string, _userId?: string): Promise<GetFollowAlongResponse> {
+
+  const response = await authenticatedFetch(`${MAPPER_API_BASE_URL}/follow-along/${id}`);
   
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
@@ -217,8 +222,9 @@ export async function getFollowAlong(id: string, userId: string): Promise<GetFol
 /**
  * Push follow-along workout to Garmin
  * Uses mapper-api endpoint
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
-export async function pushToGarmin(id: string, userId: string, scheduleDate?: string): Promise<PushToGarminResponse> {
+export async function pushToGarmin(id: string, _userId?: string, scheduleDate?: string): Promise<PushToGarminResponse> {
   // Guard: Check if unofficial Garmin sync is enabled
   if (import.meta.env.VITE_GARMIN_UNOFFICIAL_SYNC_ENABLED !== "true") {
     console.warn("Garmin Sync disabled — feature flag not enabled.");
@@ -227,14 +233,14 @@ export async function pushToGarmin(id: string, userId: string, scheduleDate?: st
       message: "Garmin Sync (Unofficial API) is currently disabled. Enable GARMIN_UNOFFICIAL_SYNC_ENABLED for personal testing.",
     };
   }
-  
-  const body = { userId, scheduleDate: scheduleDate || null };
-  
+
+  const body = { scheduleDate: scheduleDate || null };
+
   if (ENABLE_GARMIN_DEBUG) {
     console.log("=== FRONTEND_FOLLOW_ALONG_REQUEST ===", body);
   }
-  
-  const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along/${id}/push/garmin`, {
+
+  const response = await authenticatedFetch(`${MAPPER_API_BASE_URL}/follow-along/${id}/push/garmin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -279,16 +285,16 @@ export async function pushToGarmin(id: string, userId: string, scheduleDate?: st
  * Push follow-along workout to Apple Watch
  * Returns payload that can be sent via WatchConnectivity
  * Uses mapper-api endpoint
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
 export async function pushToAppleWatch(
   id: string,
-  userId: string
+  _userId?: string
 ): Promise<PushToAppleWatchResponse> {
-  
-  const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along/${id}/push/apple-watch`, {
+
+  const response = await authenticatedFetch(`${MAPPER_API_BASE_URL}/follow-along/${id}/push/apple-watch`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId }),
   });
 
   if (!response.ok) {
@@ -319,16 +325,16 @@ export async function pushToAppleWatch(
  * Push follow-along workout to iOS Companion App
  * Returns payload formatted for the iOS app's WorkoutFlowView
  * Includes full video URLs for follow-along experience
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
 export async function pushToIOSCompanion(
   id: string,
-  userId: string
+  _userId?: string
 ): Promise<PushToIOSCompanionResponse> {
-  
-  const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along/${id}/push/ios-companion`, {
+
+  const response = await authenticatedFetch(`${MAPPER_API_BASE_URL}/follow-along/${id}/push/ios-companion`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId }),
   });
 
   if (!response.ok) {
@@ -388,10 +394,11 @@ export function isValidVideoUrl(url: string): boolean {
 /**
  * Delete a follow-along workout
  * Uses mapper-api endpoint
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
-export async function deleteFollowAlong(id: string, userId: string): Promise<{ success: boolean; message?: string }> {
-  
-  const response = await fetch(`${MAPPER_API_BASE_URL}/follow-along/${id}?userId=${userId}`, {
+export async function deleteFollowAlong(id: string, _userId?: string): Promise<{ success: boolean; message?: string }> {
+
+  const response = await authenticatedFetch(`${MAPPER_API_BASE_URL}/follow-along/${id}`, {
     method: "DELETE",
   });
 

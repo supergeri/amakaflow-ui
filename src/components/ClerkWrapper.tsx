@@ -1,8 +1,31 @@
-import { ReactNode, ReactElement } from 'react';
-import { ClerkProvider } from '@clerk/clerk-react';
+import { ReactNode, ReactElement, useEffect } from 'react';
+import { ClerkProvider, useAuth } from '@clerk/clerk-react';
+import { setGlobalTokenGetter } from '../lib/authenticated-fetch';
 
 interface ClerkWrapperProps {
   children: ReactNode;
+}
+
+/**
+ * Initializes the global token getter for authenticated API calls.
+ * Must be rendered inside ClerkProvider.
+ */
+function AuthInitializer({ children }: { children: ReactNode }): ReactElement {
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    // Set the global token getter that authenticated-fetch will use
+    setGlobalTokenGetter(async () => {
+      try {
+        return await getToken();
+      } catch (error) {
+        console.warn('Failed to get auth token:', error);
+        return null;
+      }
+    });
+  }, [getToken]);
+
+  return <>{children}</>;
 }
 
 /**
@@ -19,7 +42,9 @@ export function ClerkWrapper({ children }: ClerkWrapperProps): ReactElement {
   if (hasRealClerkKey) {
     return (
       <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
-        {children}
+        <AuthInitializer>
+          {children}
+        </AuthInitializer>
       </ClerkProvider>
     );
   }

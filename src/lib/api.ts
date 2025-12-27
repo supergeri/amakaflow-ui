@@ -1,4 +1,5 @@
 import { WorkoutStructure, SourceType, Block, Superset, Exercise, BulkWorkoutResponse } from '../types/workout';
+import { authenticatedFetch } from './authenticated-fetch';
 
 // API base URL - defaults to localhost:8004 (workout-ingestor-api)
 const API_BASE_URL = import.meta.env.VITE_INGESTOR_API_URL || 'http://localhost:8004';
@@ -274,7 +275,7 @@ async function apiCall<T>(
   }
 
   try {
-    const response = await fetch(url, {
+    const response = await authenticatedFetch(url, {
       ...options,
       headers,
       signal: finalSignal,
@@ -547,7 +548,7 @@ export async function checkApiHealth(): Promise<boolean> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-    const response = await fetch(`${API_BASE_URL}/health`, {
+    const response = await authenticatedFetch(`${API_BASE_URL}/health`, {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);

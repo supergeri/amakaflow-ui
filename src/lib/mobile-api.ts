@@ -4,6 +4,8 @@
  * Client functions for iOS Companion App authentication via QR/short code pairing.
  */
 
+import { authenticatedFetch } from './authenticated-fetch';
+
 // API base URL - defaults to localhost:8001 (mapper-api)
 const MAPPER_API_BASE_URL =
   import.meta.env.VITE_MAPPER_API_URL || 'http://localhost:8001';
@@ -28,16 +30,15 @@ export interface PairingStatusResponse {
  * Returns a secure token (for QR code) and human-readable short code (for manual entry).
  * Both expire after 5 minutes.
  *
- * @param userId - The authenticated Clerk user ID
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
 export async function generatePairingToken(
-  userId: string
+  _userId?: string
 ): Promise<GeneratePairingResponse> {
-  const response = await fetch(`${MAPPER_API_BASE_URL}/mobile/pairing/generate`, {
+  const response = await authenticatedFetch(`${MAPPER_API_BASE_URL}/mobile/pairing/generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-User-Id': userId,
     },
   });
 
@@ -60,7 +61,7 @@ export async function generatePairingToken(
 export async function checkPairingStatus(
   token: string
 ): Promise<PairingStatusResponse> {
-  const response = await fetch(
+  const response = await authenticatedFetch(
     `${MAPPER_API_BASE_URL}/mobile/pairing/status/${encodeURIComponent(token)}`,
     {
       method: 'GET',
@@ -83,16 +84,15 @@ export async function checkPairingStatus(
  *
  * Call this if the user wants to cancel pairing or generate a fresh token.
  *
- * @param userId - The authenticated Clerk user ID
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
 export async function revokePairingTokens(
-  userId: string
+  _userId?: string
 ): Promise<{ success: boolean; revokedCount: number }> {
-  const response = await fetch(`${MAPPER_API_BASE_URL}/mobile/pairing/revoke`, {
+  const response = await authenticatedFetch(`${MAPPER_API_BASE_URL}/mobile/pairing/revoke`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
-      'X-User-Id': userId,
     },
   });
 

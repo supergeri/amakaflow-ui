@@ -3,6 +3,8 @@
  * Connects to the calendar-api backend for workout events
  */
 
+import { authenticatedFetch } from './authenticated-fetch';
+
 const API_BASE_URL = import.meta.env.VITE_CALENDAR_API_URL || 'http://127.0.0.1:8000';
 
 // Types matching the API schemas
@@ -92,23 +94,21 @@ export interface CreateConnectedCalendar {
 
 class CalendarApiClient {
   private baseUrl: string;
-  private userId: string | null = null;
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
   }
 
-  setUserId(userId: string) {
-    this.userId = userId;
+  /**
+   * @deprecated setUserId is no longer needed - user is identified via JWT
+   */
+  setUserId(_userId: string) {
+    // No-op: user ID is now extracted from JWT on the backend
   }
 
   private getHeaders(): HeadersInit {
-    if (!this.userId) {
-      throw new Error('User ID not set. Call setUserId() first.');
-    }
     return {
       'Content-Type': 'application/json',
-      'X-User-Id': this.userId,
     };
   }
 
@@ -125,7 +125,7 @@ class CalendarApiClient {
   // ==========================================
 
   async getEvents(start: string, end: string): Promise<WorkoutEvent[]> {
-    const response = await fetch(
+    const response = await authenticatedFetch(
       `${this.baseUrl}/calendar?start=${start}&end=${end}`,
       { headers: this.getHeaders() }
     );
@@ -133,7 +133,7 @@ class CalendarApiClient {
   }
 
   async getEvent(eventId: string): Promise<WorkoutEvent> {
-    const response = await fetch(
+    const response = await authenticatedFetch(
       `${this.baseUrl}/calendar/${eventId}`,
       { headers: this.getHeaders() }
     );
@@ -141,7 +141,7 @@ class CalendarApiClient {
   }
 
   async createEvent(event: CreateWorkoutEvent): Promise<WorkoutEvent> {
-    const response = await fetch(`${this.baseUrl}/calendar`, {
+    const response = await authenticatedFetch(`${this.baseUrl}/calendar`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(event),
@@ -150,7 +150,7 @@ class CalendarApiClient {
   }
 
   async updateEvent(eventId: string, event: UpdateWorkoutEvent): Promise<WorkoutEvent> {
-    const response = await fetch(`${this.baseUrl}/calendar/${eventId}`, {
+    const response = await authenticatedFetch(`${this.baseUrl}/calendar/${eventId}`, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify(event),
@@ -159,7 +159,7 @@ class CalendarApiClient {
   }
 
   async deleteEvent(eventId: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/calendar/${eventId}`, {
+    const response = await authenticatedFetch(`${this.baseUrl}/calendar/${eventId}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
@@ -174,7 +174,7 @@ class CalendarApiClient {
   // ==========================================
 
   async getConnectedCalendars(): Promise<ConnectedCalendar[]> {
-    const response = await fetch(
+    const response = await authenticatedFetch(
       `${this.baseUrl}/calendar/connected-calendars`,
       { headers: this.getHeaders() }
     );
@@ -182,7 +182,7 @@ class CalendarApiClient {
   }
 
   async createConnectedCalendar(calendar: CreateConnectedCalendar): Promise<ConnectedCalendar> {
-    const response = await fetch(`${this.baseUrl}/calendar/connected-calendars`, {
+    const response = await authenticatedFetch(`${this.baseUrl}/calendar/connected-calendars`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(calendar),
@@ -191,7 +191,7 @@ class CalendarApiClient {
   }
 
   async deleteConnectedCalendar(calendarId: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/calendar/connected-calendars/${calendarId}`, {
+    const response = await authenticatedFetch(`${this.baseUrl}/calendar/connected-calendars/${calendarId}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
@@ -207,7 +207,7 @@ class CalendarApiClient {
     events_updated: number;
     total_events: number;
   }> {
-    const response = await fetch(
+    const response = await authenticatedFetch(
       `${this.baseUrl}/calendar/connected-calendars/${calendarId}/sync`,
       {
         method: 'POST',

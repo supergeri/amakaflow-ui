@@ -1,9 +1,11 @@
 /**
  * Workout API Client
- * 
+ *
  * Client for communicating with the mapper-api for workout storage and retrieval.
  * Uses Supabase through the mapper API (not directly from UI).
  */
+
+import { authenticatedFetch } from './authenticated-fetch';
 
 const MAPPER_API_BASE_URL = import.meta.env.VITE_MAPPER_API_URL || 'http://localhost:8001';
 
@@ -55,7 +57,7 @@ async function workoutApiCall<T>(
     ...options.headers,
   };
 
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     ...options,
     headers,
   });

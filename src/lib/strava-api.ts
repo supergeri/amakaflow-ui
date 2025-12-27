@@ -1,8 +1,10 @@
 /**
  * Strava API Client
- * 
+ *
  * Client for communicating with the strava-sync-api service
  */
+
+import { authenticatedFetch } from './authenticated-fetch';
 
 const STRAVA_API_BASE_URL = import.meta.env.VITE_STRAVA_API_URL || 'http://localhost:8000';
 
@@ -84,7 +86,7 @@ async function stravaApiCall<T>(
     ...options.headers,
   };
 
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     ...options,
     headers,
   });
@@ -113,26 +115,28 @@ async function stravaApiCall<T>(
 
 /**
  * Fetch user's recent activities from Strava
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
 export async function getStravaActivities(
-  userId: string,
+  _userId?: string,
   limit: number = 5
 ): Promise<StravaActivity[]> {
   return stravaApiCall<StravaActivity[]>(
-    `/strava/activities?userId=${encodeURIComponent(userId)}&limit=${limit}`
+    `/strava/activities?limit=${limit}`
   );
 }
 
 /**
  * Update a Strava activity with AmakaFlow data
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
 export async function updateStravaActivity(
-  userId: string,
+  _userId: string | undefined,
   activityId: number,
   payload: UpdateActivityRequest
 ): Promise<UpdateActivityResponse> {
   return stravaApiCall<UpdateActivityResponse>(
-    `/strava/activities/${activityId}?userId=${encodeURIComponent(userId)}`,
+    `/strava/activities/${activityId}`,
     {
       method: 'PUT',
       body: JSON.stringify(payload),
@@ -142,10 +146,11 @@ export async function updateStravaActivity(
 
 /**
  * Initiate OAuth flow with Strava
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
-export async function initiateStravaOAuth(userId: string): Promise<string> {
-  const response = await fetch(
-    `${STRAVA_API_BASE_URL}/strava/oauth/initiate?userId=${encodeURIComponent(userId)}`,
+export async function initiateStravaOAuth(_userId?: string): Promise<string> {
+  const response = await authenticatedFetch(
+    `${STRAVA_API_BASE_URL}/strava/oauth/initiate`,
     {
       method: 'POST',
     }
@@ -162,10 +167,11 @@ export async function initiateStravaOAuth(userId: string): Promise<string> {
 
 /**
  * Get authenticated Strava athlete information
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
-export async function getStravaAthlete(userId: string): Promise<AthleteResponse> {
+export async function getStravaAthlete(_userId?: string): Promise<AthleteResponse> {
   return stravaApiCall<AthleteResponse>(
-    `/strava/athlete?userId=${encodeURIComponent(userId)}`
+    `/strava/athlete`
   );
 }
 
@@ -174,7 +180,7 @@ export async function getStravaAthlete(userId: string): Promise<AthleteResponse>
  */
 export async function checkStravaApiHealth(): Promise<boolean> {
   try {
-    const response = await fetch(`${STRAVA_API_BASE_URL}/health`);
+    const response = await authenticatedFetch(`${STRAVA_API_BASE_URL}/health`);
     return response.ok;
   } catch (error) {
     return false;
@@ -202,13 +208,14 @@ export async function checkAndRefreshStravaToken(userId: string): Promise<boolea
 
 /**
  * Create a manual activity on Strava
+ * @deprecated userId parameter is no longer used - user is identified via JWT
  */
 export async function createStravaActivity(
-  userId: string,
-  payload: CreateActivityRequest
+  _userId?: string,
+  payload?: CreateActivityRequest
 ): Promise<CreateActivityResponse> {
   return stravaApiCall<CreateActivityResponse>(
-    `/strava/activities?userId=${encodeURIComponent(userId)}`,
+    `/strava/activities`,
     {
       method: 'POST',
       body: JSON.stringify(payload),

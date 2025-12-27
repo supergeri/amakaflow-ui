@@ -5,6 +5,7 @@
  * Connects to workout-ingestor-api /import/* endpoints.
  */
 
+import { authenticatedFetch } from './authenticated-fetch';
 import {
   BulkInputType,
   BulkDetectRequest,
@@ -29,20 +30,17 @@ const INGESTOR_API_BASE_URL = import.meta.env.VITE_INGESTOR_API_URL || 'http://l
 // ============================================================================
 
 class BulkImportApiClient {
-  private userId: string | null = null;
-
-  setUserId(userId: string): void {
-    this.userId = userId;
+  /**
+   * @deprecated setUserId is no longer needed - user is identified via JWT
+   */
+  setUserId(_userId: string): void {
+    // No-op: user ID is now extracted from JWT on the backend
   }
 
   private getHeaders(): HeadersInit {
-    const headers: HeadersInit = {
+    return {
       'Content-Type': 'application/json',
     };
-    if (this.userId) {
-      headers['X-User-Id'] = this.userId;
-    }
-    return headers;
   }
 
   private async request<T>(
@@ -51,7 +49,7 @@ class BulkImportApiClient {
   ): Promise<T> {
     const url = `${INGESTOR_API_BASE_URL}${endpoint}`;
 
-    const response = await fetch(url, {
+    const response = await authenticatedFetch(url, {
       ...options,
       headers: {
         ...this.getHeaders(),
@@ -117,9 +115,8 @@ class BulkImportApiClient {
 
     const url = `${INGESTOR_API_BASE_URL}/import/detect/file`;
 
-    const response = await fetch(url, {
+    const response = await authenticatedFetch(url, {
       method: 'POST',
-      headers: this.userId ? { 'X-User-Id': this.userId } : {},
       body: formData,
     });
 

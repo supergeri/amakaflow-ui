@@ -7,6 +7,7 @@ import {
 } from '../types/workout';
 import { DeviceId } from './devices';
 import { applyValidationMappings } from './workout-utils';
+import { authenticatedFetch } from './authenticated-fetch';
 
 // API base URL - defaults to localhost:8001 (mapper-api)
 const MAPPER_API_BASE_URL = import.meta.env.VITE_MAPPER_API_URL || 'http://localhost:8001';
@@ -28,7 +29,7 @@ async function mapperApiCall<T>(
   // Extract signal from options to ensure it's passed correctly
   const { signal, ...restOptions } = options;
   
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     ...restOptions,
     headers,
     signal, // Explicitly pass signal for timeout support
@@ -140,7 +141,7 @@ export async function exportWorkoutToDevice(
     case 'zwift': {
       // Call /map/to-zwo for Zwift
       // Auto-detect sport from workout content
-      const response = await fetch(`${MAPPER_API_BASE_URL}/map/to-zwo?sport=run&format=zwo`, {
+      const response = await authenticatedFetch(`${MAPPER_API_BASE_URL}/map/to-zwo?sport=run&format=zwo`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -206,7 +207,7 @@ export async function checkMapperApiHealth(): Promise<boolean> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
     
-    const response = await fetch(`${MAPPER_API_BASE_URL}/mappings`, {
+    const response = await authenticatedFetch(`${MAPPER_API_BASE_URL}/mappings`, {
       method: 'GET',
       signal: controller.signal,
     });

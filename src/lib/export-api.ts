@@ -5,6 +5,8 @@
  * Supports CSV (Strong-compatible and Extended formats), FIT, TCX, and text.
  */
 
+import { authenticatedFetch } from './authenticated-fetch';
+
 const WORKOUT_INGESTOR_API_URL = import.meta.env.VITE_INGESTOR_API_URL || 'http://localhost:8004';
 
 export type CsvStyle = 'strong' | 'extended';
@@ -57,7 +59,7 @@ export async function exportWorkoutToCsv(
   workout: WorkoutExportData,
   style: CsvStyle = 'strong'
 ): Promise<Blob> {
-  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/export/csv?style=${style}`, {
+  const response = await authenticatedFetch(`${WORKOUT_INGESTOR_API_URL}/export/csv?style=${style}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(workout),
@@ -82,7 +84,7 @@ export async function exportWorkoutsToCsvBulk(
   workouts: WorkoutExportData[],
   style: CsvStyle = 'strong'
 ): Promise<Blob> {
-  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/export/csv/bulk?style=${style}`, {
+  const response = await authenticatedFetch(`${WORKOUT_INGESTOR_API_URL}/export/csv/bulk?style=${style}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(workouts),
@@ -103,7 +105,7 @@ export async function exportWorkoutsToCsvBulk(
  * @returns Blob containing the FIT file
  */
 export async function exportWorkoutToFit(workout: WorkoutExportData): Promise<Blob> {
-  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/export/fit`, {
+  const response = await authenticatedFetch(`${WORKOUT_INGESTOR_API_URL}/export/fit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(workout),
@@ -124,7 +126,7 @@ export async function exportWorkoutToFit(workout: WorkoutExportData): Promise<Bl
  * @returns Blob containing the TCX file
  */
 export async function exportWorkoutToTcx(workout: WorkoutExportData): Promise<Blob> {
-  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/export/tcx`, {
+  const response = await authenticatedFetch(`${WORKOUT_INGESTOR_API_URL}/export/tcx`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(workout),
@@ -145,7 +147,7 @@ export async function exportWorkoutToTcx(workout: WorkoutExportData): Promise<Bl
  * @returns Blob containing the text file
  */
 export async function exportWorkoutToText(workout: WorkoutExportData): Promise<Blob> {
-  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/export/tp_text`, {
+  const response = await authenticatedFetch(`${WORKOUT_INGESTOR_API_URL}/export/tp_text`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(workout),
@@ -185,7 +187,7 @@ export async function exportWorkoutToJson(
   const queryString = params.toString();
   const url = `${WORKOUT_INGESTOR_API_URL}/export/json${queryString ? `?${queryString}` : ''}`;
 
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(workout),
@@ -206,7 +208,7 @@ export async function exportWorkoutToJson(
  * @returns Blob containing the PDF file
  */
 export async function exportWorkoutToPdf(workout: WorkoutExportData): Promise<Blob> {
-  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/export/pdf`, {
+  const response = await authenticatedFetch(`${WORKOUT_INGESTOR_API_URL}/export/pdf`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(workout),
@@ -246,7 +248,7 @@ export async function exportWorkoutsToZip(
   const queryString = params.toString();
   const url = `${WORKOUT_INGESTOR_API_URL}/export/bulk/zip${queryString ? `?${queryString}` : ''}`;
 
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(workouts),

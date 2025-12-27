@@ -5,6 +5,8 @@
  * for multi-platform video workouts (YouTube, Instagram, TikTok, Pinterest)
  */
 
+import { authenticatedFetch } from './authenticated-fetch';
+
 export type VideoPlatform = 'youtube' | 'instagram' | 'tiktok' | 'pinterest' | 'unknown';
 
 export interface VideoDetectResponse {
@@ -80,7 +82,7 @@ const WORKOUT_INGESTOR_API_URL = import.meta.env.VITE_WORKOUT_INGESTOR_API_URL |
  * Detect video platform and extract video ID from URL
  */
 export async function detectVideoUrl(url: string): Promise<VideoDetectResponse> {
-  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/video/detect`, {
+  const response = await authenticatedFetch(`${WORKOUT_INGESTOR_API_URL}/video/detect`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url }),
@@ -98,7 +100,7 @@ export async function detectVideoUrl(url: string): Promise<VideoDetectResponse> 
  * Fetch oEmbed metadata for a video URL
  */
 export async function fetchOEmbed(url: string, platform?: VideoPlatform): Promise<OEmbedData> {
-  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/video/oembed`, {
+  const response = await authenticatedFetch(`${WORKOUT_INGESTOR_API_URL}/video/oembed`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url, platform }),
@@ -116,7 +118,7 @@ export async function fetchOEmbed(url: string, platform?: VideoPlatform): Promis
  * Check if a video URL is already cached
  */
 export async function checkVideoCache(url: string): Promise<CacheCheckResponse> {
-  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/video/cache/check`, {
+  const response = await authenticatedFetch(`${WORKOUT_INGESTOR_API_URL}/video/cache/check`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url }),
@@ -141,7 +143,7 @@ export async function saveVideoToCache(params: {
   processing_method?: string;
   ingested_by?: string;
 }): Promise<{ cached: boolean; cache_entry: CachedVideo | null }> {
-  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/video/cache/save`, {
+  const response = await authenticatedFetch(`${WORKOUT_INGESTOR_API_URL}/video/cache/save`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -159,7 +161,7 @@ export async function saveVideoToCache(params: {
  * Get cached video by platform and video ID
  */
 export async function getCachedVideo(platform: VideoPlatform, videoId: string): Promise<CachedVideo | null> {
-  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/video/cache/${platform}/${videoId}`);
+  const response = await authenticatedFetch(`${WORKOUT_INGESTOR_API_URL}/video/cache/${platform}/${videoId}`);
 
   if (!response.ok) {
     if (response.status === 404) {
@@ -177,7 +179,7 @@ export async function getCachedVideo(platform: VideoPlatform, videoId: string): 
  * Get video cache statistics
  */
 export async function getVideoCacheStats(): Promise<CacheStatsResponse> {
-  const response = await fetch(`${WORKOUT_INGESTOR_API_URL}/video/cache/stats`);
+  const response = await authenticatedFetch(`${WORKOUT_INGESTOR_API_URL}/video/cache/stats`);
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: response.statusText }));
